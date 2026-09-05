@@ -6,15 +6,14 @@ require_once '../model/ScoringModel.php';
 require_once '../controller/ScoringInputController.php';
 require_once '../model/TeamModel.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use Mannschaft\TeamModel;
 use model\ScoringModel;
 use Scoring\ScoringInputController;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Weiterleitung, wenn Berechtigungen nicht korrekt sind
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -61,7 +60,7 @@ $mannschaften = (new TeamModel($conn))->getAllMannschaften();
 $name = isset($_POST['name']) ? trim($_POST['name']) : "";
 
 // Aktuelle Ansicht bestimmen
-$currentView = $_GET['view'] ?? 'overview';
+$currentView = sanitize_view_param($_GET['view'] ?? null, ['overview', 'create', 'assign', 'remove'], 'overview');
 
 // Seiten-Titel
 $pageTitle = "Verwaltung der Wertungsklassen";
@@ -86,9 +85,9 @@ $pageTitle = "Verwaltung der Wertungsklassen";
 
     <!-- JavaScript-Konstanten übergeben -->
     <script>
-        const mannschaften = <?php echo json_encode($mannschaften, JSON_HEX_TAG); ?>;
-        const wertungsklassen = <?php echo json_encode($wertungsklassen, JSON_HEX_TAG); ?>;
-        const selectedWertung = <?php echo json_encode($selectedWertung, JSON_HEX_TAG); ?>;
+        const mannschaften = <?php echo json_encode_for_js($mannschaften); ?>;
+        const wertungsklassen = <?php echo json_encode_for_js($wertungsklassen); ?>;
+        const selectedWertung = <?php echo json_encode_for_js($selectedWertung); ?>;
     </script>
 </head>
 <body class="has-navbar">
@@ -180,13 +179,13 @@ $pageTitle = "Verwaltung der Wertungsklassen";
                                 </td>
                                 <td class="action-cell">
                                     <div class="button-group">
-                                        <button class="btn small" onclick="showAssignmentForWertung('<?php echo htmlspecialchars($wertung['wertung_name']); ?>')">
+                                        <button class="btn small" onclick="showAssignmentForWertung(<?php echo json_encode_for_js($wertung['wertung_name']); ?>)">
                                             Teams bearbeiten
                                         </button>
-                                        <button class="btn warning-btn small" onclick="showRemovalForWertung('<?php echo htmlspecialchars($wertung['wertung_name']); ?>')">
+                                        <button class="btn warning-btn small" onclick="showRemovalForWertung(<?php echo json_encode_for_js($wertung['wertung_name']); ?>)">
                                             Teams entfernen
                                         </button>
-                                        <button class="btn warning-btn small" onclick="confirmDeleteWertung(<?php echo htmlspecialchars($wertung['wertung_id']); ?>, '<?php echo addslashes($wertung['wertung_name']); ?>')">
+                                        <button class="btn warning-btn small" onclick="confirmDeleteWertung(<?php echo (int)$wertung['wertung_id']; ?>, <?php echo json_encode_for_js($wertung['wertung_name']); ?>)">
                                             Löschen
                                         </button>
                                     </div>
@@ -344,7 +343,7 @@ echo CustomAlertBox::renderSimpleConfirm(
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Sicherstellen, dass der korrekte Tab angezeigt wird
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
 
         initSortableTable(document.querySelector('.data-table'));

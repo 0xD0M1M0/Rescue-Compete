@@ -3,6 +3,8 @@ namespace Nutzer;
 
 use Station\UserModel;
 
+require_once __DIR__ . '/../auth/PasswordHash.php';
+
 class UserController {
     private UserModel $model;
     public string $message = "";
@@ -10,14 +12,28 @@ class UserController {
     public array $modalData = [];
     public string $redirectUrl = "UserInputView.php";
 
+    private const ALLOWED_ROLES = ['Wartend', 'Wettkampfleitung', 'Schiedsrichter', 'Teilnehmer'];
+
     public function __construct(UserModel $model) {
         $this->model = $model;
     }
 
     public function handleRequest() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+            csrf_require();
+        }
+
         // Passwort-Update
         if (isset($_POST['update_password'])) {
             $this->handlePasswordUpdate();
+            return;
+        }
+
+        // Rolle / SSO-E-Mail aktualisieren
+        if (isset($_POST['update_user_meta'])) {
+            $this->handleUserMetaUpdate();
             return;
         }
 
@@ -47,9 +63,16 @@ class UserController {
         // Hinzufügen oder Aktualisieren eines Nutzers
         if (isset($_POST['add_user'])) {
             $username     = trim($_POST['username']);
-            $password     = trim($_POST['password']);
-            $passwordConfirm = trim($_POST['password_confirm']);
+            $password     = trim($_POST['password'] ?? '');
+            $passwordConfirm = trim($_POST['password_confirm'] ?? '');
             $acc_typ      = trim($_POST['acc_typ']);
+            $ssoEmail     = trim($_POST['sso_email'] ?? '');
+            // Nur Admins dürfen SSO-E-Mails zuweisen (verhindert E-Mail-Squatting)
+            if ($ssoEmail !== '' && (!$this->isCurrentUserAdmin())) {
+                $this->message = "Nur Administratoren dürfen SSO-E-Mails zuweisen.";
+                $this->messageType = "error";
+                return;
+            }
 
             // Validierung der Eingaben
             if (empty($username)) {
@@ -70,19 +93,34 @@ class UserController {
                 return;
             }
 
-            if (empty($password)) {
-                $this->message = "Passwort ist erforderlich.";
+            if ($ssoEmail !== '' && !filter_var($ssoEmail, FILTER_VALIDATE_EMAIL)) {
+                $this->message = "SSO-E-Mail ist ungültig.";
                 $this->messageType = "error";
                 return;
             }
 
-            if ($password !== $passwordConfirm) {
-                $this->message = "Passwörter stimmen nicht überein.";
+            if ($ssoEmail !== '' && $this->model->isSsoEmailTaken($ssoEmail)) {
+                $this->message = "Diese SSO-E-Mail ist bereits einem anderen Benutzer zugeordnet.";
                 $this->messageType = "error";
                 return;
             }
 
-            if (empty($acc_typ)) {
+            // Lokales Passwort oder SSO-E-Mail (für Übernahme) erforderlich
+            if ($password === '' && $ssoEmail === '') {
+                $this->message = "Passwort oder SSO-E-Mail ist erforderlich.";
+                $this->messageType = "error";
+                return;
+            }
+
+            if ($password !== '') {
+                if ($password !== $passwordConfirm) {
+                    $this->message = "Passwörter stimmen nicht überein.";
+                    $this->messageType = "error";
+                    return;
+                }
+            }
+
+            if (empty($acc_typ) || !in_array($acc_typ, self::ALLOWED_ROLES, true)) {
                 $this->message = "Account-Typ ist erforderlich.";
                 $this->messageType = "error";
                 return;
@@ -102,7 +140,10 @@ class UserController {
                 return;
             }
 
-            $passwordHash = hash_hmac("md5", $password, "Zehn zahme Ziegen zogen zehn Zentner Zucker zum Zoo");
+            $passwordHash = null;
+            if ($password !== '') {
+                $passwordHash = PasswordHash::hash($password);
+            }
 
             // Mannschaft_ID verarbeiten
             $mannschaft_ID = "";
@@ -118,7 +159,8 @@ class UserController {
                 'passwordHash'  => $passwordHash,
                 'acc_typ' => $acc_typ,
                 'mannschaft_ID' => $mannschaft_ID,
-                'station_ID' => null
+                'station_ID' => null,
+                'sso_email' => $ssoEmail !== '' ? $ssoEmail : null,
             ];
 
             $result = $this->model->addOrUpdateUser($entry, $confirmUpdate, $providedDuplicateId);
@@ -131,7 +173,8 @@ class UserController {
                     'username'     => $username,
                     'passwordHash'  => $passwordHash,
                     'acc_typ' => $acc_typ,
-                    'mannschaft_ID' => $mannschaft_ID
+                    'mannschaft_ID' => $mannschaft_ID,
+                    'sso_email' => $ssoEmail,
                 ];
             } elseif ($result['status'] === 'created') {
                 $_SESSION['notification_message'] = "Benutzer '{$username}' wurde erfolgreich erstellt.";
@@ -148,6 +191,82 @@ class UserController {
                 $this->messageType = "error";
             }
         }
+    }
+
+    private function handleUserMetaUpdate(): void
+    {
+        $userId = intval($_POST['user_id'] ?? 0);
+        $accTyp = trim($_POST['acc_typ'] ?? '');
+        $ssoEmail = trim($_POST['sso_email'] ?? '');
+
+        if ($ssoEmail !== '' && (!$this->isCurrentUserAdmin())) {
+            $this->message = "Nur Administratoren dürfen SSO-E-Mails zuweisen.";
+            $this->messageType = "error";
+            return;
+        }
+
+        $existingUser = $this->model->read($userId);
+        if (!$existingUser) {
+            $this->message = "Benutzer nicht gefunden.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if ($existingUser['acc_typ'] === 'Admin') {
+            $this->message = "Admin-Accounts können nur über die Admin-Verwaltung verwaltet werden.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if (!in_array($accTyp, self::ALLOWED_ROLES, true)) {
+            $this->message = "Ungültiger Account-Typ.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if ($ssoEmail !== '' && !filter_var($ssoEmail, FILTER_VALIDATE_EMAIL)) {
+            $this->message = "SSO-E-Mail ist ungültig.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if ($ssoEmail !== '' && $this->model->isSsoEmailTaken($ssoEmail, $userId)) {
+            $this->message = "Diese SSO-E-Mail ist bereits einem anderen Benutzer zugeordnet.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if ($accTyp === 'Teilnehmer' && empty($existingUser['mannschaft_ID'])) {
+            $this->message = "Teilnehmer müssen einem Team zugeordnet sein. Bitte Benutzer neu anlegen oder Team setzen.";
+            $this->messageType = "error";
+            return;
+        }
+
+        $roleOk = $this->model->updateAccTyp($userId, $accTyp);
+        $emailOk = true;
+        if ($this->isCurrentUserAdmin()) {
+            $emailOk = $this->model->updateSsoEmail($userId, $ssoEmail !== '' ? $ssoEmail : null);
+        }
+
+        if ($roleOk || ($this->isCurrentUserAdmin() && $emailOk)) {
+            // Role update may report 0 rows if unchanged; still treat email update as success
+            $_SESSION['notification_message'] = "Benutzer '{$existingUser['username']}' wurde aktualisiert.";
+            $_SESSION['notification_type'] = "success";
+            header("Location: " . $this->redirectUrl . "?view=overview");
+            exit;
+        }
+
+        // Beide unverändert oder Fehler — wenn Werte gleich, trotzdem OK
+        if ($existingUser['acc_typ'] === $accTyp
+            && strtolower((string)($existingUser['sso_email'] ?? '')) === strtolower($ssoEmail)) {
+            $_SESSION['notification_message'] = "Keine Änderungen.";
+            $_SESSION['notification_type'] = "info";
+            header("Location: " . $this->redirectUrl . "?view=overview");
+            exit;
+        }
+
+        $this->message = "Fehler beim Aktualisieren des Benutzers.";
+        $this->messageType = "error";
     }
 
     private function handlePasswordUpdate() {
@@ -174,7 +293,7 @@ class UserController {
         }
 
         // Neues Passwort hashen
-        $newPasswordHash = hash_hmac("md5", $newPassword, "Zehn zahme Ziegen zogen zehn Zentner Zucker zum Zoo");
+        $newPasswordHash = PasswordHash::hash($newPassword);
 
         // Passwort aktualisieren
         $success = $this->model->updatePassword($userId, $newPasswordHash);
@@ -185,5 +304,10 @@ class UserController {
             echo json_encode(['success' => false, 'message' => 'Fehler beim Aktualisieren des Passworts.']);
         }
         exit;
+    }
+
+    private function isCurrentUserAdmin(): bool
+    {
+        return isset($_SESSION['acc_typ']) && $_SESSION['acc_typ'] === 'Admin';
     }
 }

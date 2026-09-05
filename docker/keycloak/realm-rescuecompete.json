@@ -1,0 +1,65 @@
+{
+  "realm": "rescuecompete",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "clients": [
+    {
+      "clientId": "rescue-compete",
+      "name": "RescueCompete",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "local-dev-secret",
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost/controller/OidcSsoCallback.php"
+      ],
+      "webOrigins": [
+        "http://localhost"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost/view/Login.php##http://localhost/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email",
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "sso-user",
+      "enabled": true,
+      "email": "sso-user@example.com",
+      "emailVerified": true,
+      "firstName": "SSO",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "sso-user",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

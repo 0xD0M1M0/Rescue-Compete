@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../php_assets/RequireLogin.php';
 requireLogin();
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 // Berechtigungs-Check: nur Wettkampfleitung/Admin
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -97,7 +98,7 @@ $pageTitle = "QR-Codes";
                             <div class="qr-code-info">
                                 <p>URL: <a href="<?php echo htmlspecialchars($url); ?>" target="_blank"><?php echo htmlspecialchars($url); ?></a></p>
                                 <button type="button" class="btn download-btn"
-                                        onclick="downloadQrCode('<?php echo $cardId; ?>', '<?php echo htmlspecialchars(addslashes($label), ENT_QUOTES); ?>')">
+                                        onclick="downloadQrCode(<?php echo json_encode_for_js($cardId); ?>, <?php echo json_encode_for_js($label); ?>)">
                                     QR-Code herunterladen
                                 </button>
                             </div>
@@ -127,7 +128,7 @@ $pageTitle = "QR-Codes";
                             <div class="qr-code-info">
                                 <p>URL: <a href="<?php echo htmlspecialchars($url); ?>" target="_blank"><?php echo htmlspecialchars($url); ?></a></p>
                                 <button type="button" class="btn download-btn"
-                                        onclick="downloadQrCode('<?php echo $cardId; ?>', '<?php echo htmlspecialchars(addslashes($label), ENT_QUOTES); ?>')">
+                                        onclick="downloadQrCode(<?php echo json_encode_for_js($cardId); ?>, <?php echo json_encode_for_js($label); ?>)">
                                     QR-Code herunterladen
                                 </button>
                             </div>

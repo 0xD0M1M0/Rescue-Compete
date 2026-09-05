@@ -118,7 +118,7 @@ function loadStaffelCheckboxes() {
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
-                list.innerHTML = `<p class="warning">${data.error || 'Fehler beim Laden der Staffeln.'}</p>`;
+                list.innerHTML = `<p class="warning">${escapeHtml(data.error || 'Fehler beim Laden der Staffeln.')}</p>`;
                 return;
             }
 

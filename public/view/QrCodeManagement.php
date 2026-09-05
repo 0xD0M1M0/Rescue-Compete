@@ -1,7 +1,8 @@
 <?php
 
-// Session starten
-session_start();
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Prüfen, ob der Benutzer angemeldet ist und die richtigen Rechte hat
 if (!isset($_SESSION['id']) || !isset($_SESSION['login']) || $_SESSION['login'] !== 'ok' || $_SESSION['acc_typ'] !== 'Wettkampfleitung') {
@@ -82,7 +83,7 @@ $pageTitle = "QR-Code Verwaltung";
                         <div class="qr-code-container" id="qrcode-<?php echo $index; ?>" data-url="<?php echo htmlspecialchars($group['url']); ?>"></div>
                         <div class="qr-code-info">
                             <p>URL: <a href="<?php echo htmlspecialchars($group['url']); ?>" target="_blank"><?php echo htmlspecialchars($group['url']); ?></a></p>
-                            <button class="btn download-btn" onclick="downloadQrCode(<?php echo $index; ?>, '<?php echo addslashes($group['title']); ?>')">QR-Code herunterladen</button>
+                            <button class="btn download-btn" onclick="downloadQrCode(<?php echo (int)$index; ?>, <?php echo json_encode_for_js($group['title']); ?>)">QR-Code herunterladen</button>
                         </div>
                     </div>
                 <?php endforeach; ?>

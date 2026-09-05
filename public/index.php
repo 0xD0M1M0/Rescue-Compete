@@ -1,6 +1,6 @@
 <?php
-// Starte die Session am Anfang jeder Seite
-session_start();
+require_once __DIR__ . '/CookieMonster.php';
+startSecureSession();
 
 // Debug-Ausgabe (später auskommentieren oder entfernen)
 // error_log("Session Status in index.php: " . print_r($_SESSION, true));
@@ -16,8 +16,9 @@ $isLoggedIn = isset($_SESSION["login"]) && $_SESSION["login"] === "ok";
 $pageTitle = "RescueCompete";
 
 // Benutzerinformationen für die Anzeige (falls eingeloggt)
-$userName = isset($_SESSION['benutzername']) ? htmlspecialchars($_SESSION['benutzername']) : null;
+$userName = isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : null;
 $userType = isset($_SESSION['acc_typ']) ? htmlspecialchars($_SESSION['acc_typ']) : null;
+$isPendingRole = $isLoggedIn && isset($_SESSION['acc_typ']) && $_SESSION['acc_typ'] === 'Wartend';
 ?>
 
 <!DOCTYPE html>
@@ -48,6 +49,19 @@ $userType = isset($_SESSION['acc_typ']) ? htmlspecialchars($_SESSION['acc_typ'])
 <!-- Navbar -->
 <?php include 'php_assets/Navbar.php'; ?>
 <div class="landing-container">
+    <?php if ($isPendingRole): ?>
+    <section class="pending-role-banner">
+        <div class="pending-role-content">
+            <h2>Warte auf Rollenzuweisung</h2>
+            <p>
+                Sie sind angemeldet<?php echo $userName ? ' als <strong>' . $userName . '</strong>' : ''; ?>,
+                haben aber noch keine Rolle. Ein Administrator muss Ihnen unter
+                <em>Benutzer</em> eine Rolle zuweisen, bevor Sie Funktionen nutzen können.
+            </p>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <!-- Hero Section für alle Benutzer -->
     <section class="hero-section">
         <div class="hero-content">

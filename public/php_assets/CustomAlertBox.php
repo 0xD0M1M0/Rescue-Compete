@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/SecurityHelpers.php';
+
 class CustomAlertBox {
     private $id;
     private string $title;
@@ -46,8 +48,9 @@ class CustomAlertBox {
 
         if (!empty($this->data)) {
             $html .= '<form method="post">';
+            $html .= csrf_field();
             foreach ($this->data as $key => $value) {
-                $html .= '<input type="hidden" name="'.htmlspecialchars($key).'" value="'.htmlspecialchars($value).'">';
+                $html .= '<input type="hidden" name="'.htmlspecialchars($key).'" value="'.htmlspecialchars((string)$value).'">';
             }
             $html = $this->generateAlertButtons($html);
             $html .= '</form>';

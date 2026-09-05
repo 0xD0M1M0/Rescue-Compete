@@ -2,10 +2,8 @@
 // Sidebar.php - Einfache Wettkampf-Sidebar
 // Unterstützt die Wettkampf-Erstellung in logischen Schritten
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Prüfen, ob Benutzer die Berechtigung hat, die Sidebar zu sehen
 $canUseSidebar = isset($_SESSION['acc_typ']) && ($_SESSION['acc_typ'] === 'Wettkampfleitung' || $_SESSION['acc_typ'] === 'Admin');

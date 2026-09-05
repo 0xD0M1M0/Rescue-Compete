@@ -3,14 +3,13 @@ require_once '../db/DbConnection.php';
 require_once '../model/FormCollectionModel.php';
 require_once '../controller/FormCollectionController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use FormCollection\FormCollectionModel;
 use FormCollection\FormCollectionController;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Weiterleitung, wenn Berechtigungen nicht Korrekt sind
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -45,7 +44,11 @@ $validationErrors = $controller->validationErrors;
 
 // Aktuelle Ansicht bestimmen — Controller kann den Tab nach POST-Aktionen
 // erzwingen (z. B. Edit-Tab nach update_time_limit-Fehler).
-$currentView = $controller->currentView ?? ($_GET['view'] ?? 'overview');
+$currentView = sanitize_view_param(
+    $controller->currentView ?? ($_GET['view'] ?? null),
+    ['overview', 'create', 'edit', 'qrcodes', 'performance'],
+    'overview'
+);
 $collectionId = isset($_GET['collection_id']) ? intval($_GET['collection_id']) : null;
 
 $pageTitle = "Formular Verwaltung";
@@ -166,7 +169,7 @@ $pageTitle = "Formular Verwaltung";
                                         <button class="btn small" onclick="editTimeLimit(<?php echo $collection['ID']; ?>)">
                                             Zeit
                                         </button>
-                                        <button class="btn warning-btn small" onclick="confirmDeleteCollection(<?php echo $collection['ID']; ?>, '<?php echo addslashes($collection['name']); ?>')">
+                                        <button class="btn warning-btn small" onclick="confirmDeleteCollection(<?php echo (int)$collection['ID']; ?>, <?php echo json_encode_for_js($collection['name']); ?>)">
                                             Löschen
                                         </button>
                                     </div>
@@ -387,7 +390,7 @@ $pageTitle = "Formular Verwaltung";
                                         <p><strong>URL:</strong> <a href="<?php echo htmlspecialchars($token['qrCodeUrl']); ?>" target="_blank">
                                                 <?php echo htmlspecialchars($token['qrCodeUrl']); ?>
                                             </a></p>
-                                        <button class="btn download-btn" onclick="downloadQrCode(<?php echo $index; ?>, '<?php echo addslashes($token['collectionName'] . '_Form_' . $token['formNumber']); ?>')">
+                                        <button class="btn download-btn" onclick="downloadQrCode(<?php echo (int)$index; ?>, <?php echo json_encode_for_js($token['collectionName'] . '_Form_' . $token['formNumber']); ?>)">
                                             QR-Code herunterladen
                                         </button>
                                     </div>
@@ -544,7 +547,7 @@ endif;
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Sicherstellen, dass der korrekte Tab angezeigt wird
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
 
         // Character Counter initialisieren - mit Verzögerung für Tab-Switching

@@ -87,6 +87,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 showErrorMessage('Falsches Passwort.');
                 markInvalidFields(['password']);
                 break;
+            case 'sso_only':
+                showErrorMessage('Dieser Account ist mit SSO verknüpft. Bitte über SSO anmelden.');
+                break;
+            case 'sso_disabled':
+                showErrorMessage('SSO-Anmeldung ist nicht konfiguriert.');
+                break;
+            case 'sso_state':
+                showErrorMessage('SSO-Anmeldung ungültig. Bitte erneut versuchen.');
+                break;
+            case 'sso_email':
+                showErrorMessage('SSO-Anmeldung erfordert eine verifizierte E-Mail. Anmeldung nicht möglich.');
+                break;
+            case 'sso_error':
+                showErrorMessage('Anmeldung über SSO fehlgeschlagen. Bitte erneut versuchen.');
+                break;
             case '4':
                 showErrorMessage('Sitzung abgelaufen. Bitte erneut anmelden.');
                 break;

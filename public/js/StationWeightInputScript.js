@@ -50,7 +50,7 @@ function loadStationWeights() {
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
-                list.innerHTML = `<tr><td colspan="4" class="warning">${data.error || 'Fehler beim Laden.'}</td></tr>`;
+                list.innerHTML = `<tr><td colspan="4" class="warning">${escapeHtml(data.error || 'Fehler beim Laden.')}</td></tr>`;
                 return;
             }
 

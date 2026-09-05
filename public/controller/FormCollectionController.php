@@ -38,6 +38,10 @@ class FormCollectionController
      */
     public function handleRequest(): void
     {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+        }
         // AJAX-Requests zuerst behandeln (bevor HTML-Output beginnt)
         if ($this->isAjaxRequest()) {
             $this->handleAjaxRequest();

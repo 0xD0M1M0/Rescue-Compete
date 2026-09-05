@@ -186,16 +186,9 @@ class TeamFormRelationModel
      */
     public function generateUniqueToken($length = 16): string
     {
-        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $token = '';
-
+        // $length kept for BC; tokens are always 32 hex chars (16 bytes)
         do {
-            $token = '';
-            for ($i = 0; $i < $length; $i++) {
-                $token .= $characters[rand(0, strlen($characters) - 1)];
-            }
-
-            // Prüfe, ob das Token bereits existiert
+            $token = bin2hex(random_bytes(16));
             $exists = $this->tokenExists($token);
         } while ($exists);
 

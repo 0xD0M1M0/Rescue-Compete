@@ -1,6 +1,10 @@
 <?php
-// Starte die Session für Login-Seite
-session_start();
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
+
+require_once __DIR__ . '/../auth/OidcClient.php';
+$ssoEnabled = OidcClient::isEnabled();
+$ssoLoginLabel = OidcClient::loginLabel();
 
 // Absolute URLs für die Weiterleitung
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
@@ -67,6 +71,21 @@ if (isset($_GET['f'])) {
             break;
         case '3':
             $errorMessage = 'Falsches Passwort.';
+            break;
+        case 'sso_only':
+            $errorMessage = 'Dieser Account ist mit SSO verknüpft. Bitte über SSO anmelden.';
+            break;
+        case 'sso_disabled':
+            $errorMessage = 'SSO-Anmeldung ist nicht konfiguriert.';
+            break;
+        case 'sso_state':
+            $errorMessage = 'SSO-Anmeldung ungültig (State). Bitte erneut versuchen.';
+            break;
+        case 'sso_email':
+            $errorMessage = 'SSO-Anmeldung hat keine E-Mail geliefert. Anmeldung nicht möglich.';
+            break;
+        case 'sso_error':
+            $errorMessage = 'Anmeldung über SSO fehlgeschlagen. Bitte versuchen Sie es erneut.';
             break;
         case '999':
             $errorMessage = 'Datenbankverbindung nicht verfügbar.';
@@ -136,6 +155,13 @@ if (isset($_SESSION['redirect_code'])) {
                 <input type="submit" value="Einloggen">
             </div>
         </form>
+
+        <?php if ($ssoEnabled): ?>
+            <div class="sso-section">
+                <div class="sso-divider"><span>oder</span></div>
+                <a class="sso-button" href="../controller/OidcSsoStart.php"><?php echo htmlspecialchars($ssoLoginLabel); ?></a>
+            </div>
+        <?php endif; ?>
 
         <!-- Container für Fehlermeldungen außerhalb der Loginbox -->
         <div id="error-message" class="message-container">

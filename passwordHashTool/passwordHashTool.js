@@ -1,9 +1,10 @@
 /**
- * Password Hash Tool - Generiert HMAC-MD5 Hashes für webappdb
- * Verwendet identische Logik wie LoginManager.php
+ * Password Hash Tool - Legacy HMAC-MD5 only (bootstrap / old hashes).
+ * Die App speichert neue Passwörter mit PHP password_hash(PASSWORD_DEFAULT)
+ * und akzeptiert beim Login weiterhin diese Legacy-Hashes (dann Upgrade).
  */
 
-// Konstanten - identisch mit LoginManager.php
+// Konstanten - Legacy, identisch mit PasswordHash::legacyHash
 const SALT = "Zehn zahme Ziegen zogen zehn Zentner Zucker zum Zoo";
 
 // DOM-Elemente

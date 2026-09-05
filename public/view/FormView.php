@@ -7,6 +7,7 @@ require_once '../model/QuestionModel.php';
 require_once '../model/AnswerModel.php';
 require_once '../model/TeamModel.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use FormCollection\FormCollectionModel;
 use FormCollection\TeamFormInstanceModel;
@@ -14,10 +15,8 @@ use Question\QuestionModel;
 use Answer\AnswerModel;
 use Mannschaft\TeamModel;
 
-// Session starten
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Parameter verarbeiten
 $expired = isset($_GET['expired']) && $_GET['expired'] === '1';
@@ -349,9 +348,9 @@ if ($formSubmitted) {
     const formConfig = {
         formSubmitted: false,
         timeLimit: <?php echo $timeLimit; ?>,
-        instanceToken: "<?php echo $instanceToken; ?>",
+        instanceToken: <?php echo json_encode_for_js($instanceToken); ?>,
         hasServerEndTime: <?php echo $hasServerEndTime ? 'true' : 'false'; ?>,
-        serverEndTime: <?php echo $hasServerEndTime ? '"'.$serverEndTime.'"' : 'null'; ?>,
+        serverEndTime: <?php echo $hasServerEndTime ? json_encode_for_js($serverEndTime) : 'null'; ?>,
         serverTime: <?php echo time(); ?>,
         questionCount: <?php echo count($questionsWithAnswers); ?>
     };

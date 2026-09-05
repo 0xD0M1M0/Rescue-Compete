@@ -1,13 +1,22 @@
 services:
+  # Optional local OIDC: docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.keycloak.yml up -d
   project:
     build: .
     expose:
       - "80"
+    env_file:
+      - .env
     environment:
       MYSQL_SERVER: db
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      OIDC_ENABLED: ${OIDC_ENABLED:-0}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
+      OIDC_LOGIN_LABEL: ${OIDC_LOGIN_LABEL:-}
     volumes:
       - ./public:/var/www/html/
     restart: unless-stopped

@@ -1,8 +1,8 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 $pageTitle = "Eingabe der Parcours-Ergebnisse";
 ?>
@@ -21,7 +21,7 @@ $pageTitle = "Eingabe der Parcours-Ergebnisse";
     <link rel="stylesheet" href="../css/StationSubmissionStyling.css">
 </head>
 <!-- Übergabe des submittedTeams-Arrays als Data-Attribut -->
-<body class="has-navbar" data-submitted-teams='<?php echo json_encode(array_map('strval', $submittedTeams ?? [])); ?>'>
+<body class="has-navbar" data-submitted-teams='<?php echo json_encode_for_js(array_map('strval', $submittedTeams ?? [])); ?>'>
 <?php include '../php_assets/Navbar.php'; ?>
 <div class="container">
     <div class="wrapper">

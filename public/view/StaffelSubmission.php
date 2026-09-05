@@ -1,8 +1,8 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 // StaffelSubmission.php
 // Erwartet werden:
 //   $staffelID        : die aktuelle Staffel ID
@@ -29,7 +29,7 @@ require_once '../php_assets/CustomAlertBox.php';
     <link rel="stylesheet" href="../css/StaffelSubmissionStyling.css">
 </head>
 <!-- Übergabe des submittedTeams-Arrays als Data-Attribut und spezifische CSS-Klasse -->
-<body class="has-navbar staffel-submission-page" data-submitted-teams='<?php echo json_encode(array_map('strval', $submittedTeams ?? [])); ?>'>
+<body class="has-navbar staffel-submission-page" data-submitted-teams='<?php echo json_encode_for_js(array_map('strval', $submittedTeams ?? [])); ?>'>
 <?php include '../php_assets/Navbar.php'; ?>
 <div class="container">
     <div class="header-with-back">

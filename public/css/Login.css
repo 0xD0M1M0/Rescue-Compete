@@ -168,3 +168,49 @@ input[type="button"] {
         font-size: 0.85em;
     }
 }
+
+/* SSO-Anmeldung */
+.sso-section {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.sso-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #888;
+    margin: 4px 0 16px;
+    font-size: 0.9em;
+}
+
+.sso-divider::before,
+.sso-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #ddd;
+}
+
+.sso-divider span {
+    padding: 0 12px;
+}
+
+.sso-button {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    text-decoration: none;
+    background-color: white;
+    color: var(--ww-darkblue-100);
+    border: 2px solid var(--ww-darkblue-100);
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.sso-button:hover {
+    background-color: var(--ww-darkblue-100);
+    color: white;
+}

@@ -37,18 +37,167 @@ Die Anwendung nutzt eine komplexe Datenbankstruktur mit folgenden Hauptentitäte
 
 ## Installation
 
-1. Repository klonen
+Voraussetzung: [Docker Desktop](https://www.docker.com/products/docker-desktop/) (oder eine andere Docker-Umgebung) muss laufen. Port 80 und 8080 sollten frei sein.
+
+### 1. Repository klonen
+
 ```bash
 git clone [repository-url]
-cd rescuecompete
+cd Rescue-Compete
 ```
 
-2. Docker-Umgebung starten
+### 2. Umgebungsvariablen anlegen
+
 ```bash
-docker-compose up -d
+cp .env.example .env
 ```
 
-3. Webserver konfigurieren und auf `index.php` verweisen
+`.env` anpassen (mindestens die Datenbankpasswörter). Beispielinhalt:
+
+```env
+MYSQL_ROOT_PASSWORD=change-me-root
+MYSQL_DATABASE=webappdb
+MYSQL_USER=rescue
+MYSQL_PASSWORD=change-me-user
+OIDC_ENABLED=0
+```
+
+OIDC-Variablen siehe Abschnitt [Single Sign-On](#drkserver-single-sign-on-optional) bzw. Kommentare in `.env.example`.
+
+Beim ersten Start lädt MariaDB das Schema aus `sql-scheme/webappdb-V6-1.sql` in die angegebene Datenbank.
+
+### 3. Container starten
+
+```bash
+docker compose up -d
+```
+
+Beim ersten Mal (oder nach Änderungen am `Dockerfile`) einmal mit Build:
+
+```bash
+docker compose up -d --build
+```
+
+`docker-compose.override.yml` wird automatisch mitgeladen und veröffentlicht:
+
+| Dienst     | URL                       |
+|------------|---------------------------|
+| Anwendung  | http://localhost          |
+| phpMyAdmin | http://localhost:8080     |
+
+Stoppen: `docker compose down`  
+Datenbankvolumen mit löschen: `docker compose down -v`
+
+### 4. Ersten Admin-Benutzer anlegen
+
+Die Datenbank enthält zunächst keine Benutzer. Über phpMyAdmin (http://localhost:8080) die Datenbank (Name siehe .env - z.B.MYSQL_DATABASE: **webappdb**) auswählen und ausführen:
+
+```sql
+USE webappdb;
+
+INSERT INTO `User` (username, passwordHash, acc_typ, mannschaft_ID, station_ID)
+VALUES (
+  'admin',
+  '5ede13f8c4f4b1416e9c7837629fd1bf',
+  'Admin',
+  NULL,
+  NULL
+);
+```
+
+Danach unter http://localhost/view/Login.php anmelden:
+
+- Benutzername: `admin`
+- Passwort: `admin`
+
+Das Standardpasswort danach ändern. Weitere Accounts legt man nach dem Login unter **Benutzer** bzw. **Admin-Verwaltung** an.
+
+### Produktion
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+Damit starten die App hinter Caddy (Ports 80/443) statt mit dem lokalen Override.
+
+### 5. Bestehende Datenbank: SSO-Migration
+
+Bei einer bereits initialisierten Datenbank (Docker-Volume) einmalig ausführen:
+
+```bash
+docker compose exec -T db mariadb -u root -p"$MYSQL_ROOT_PASSWORD" < sql-scheme/migrations/2026-09-05-sso.sql
+```
+
+Oder in phpMyAdmin den Inhalt von `sql-scheme/migrations/2026-09-05-sso.sql` ausführen (Datenbank **webappdb**).
+
+Neue Installationen erhalten die SSO-Spalten bereits über `sql-scheme/webappdb-V6-1.sql`.
+
+## drkserver Single Sign-On (optional)
+
+RescueCompete kann parallel zum lokalen Login [drkserver SSO](https://www.drkserver.org/drkserver/funktionen/single-sign-on.html) (OpenID Connect) nutzen. SSO prüft nur die Identität; Rollen bleiben in RescueCompete.
+
+### Client beim drkserver-Team beantragen
+
+E-Mail an **support@drkserver.org** mit Betreff `SSO-Client einrichten` und:
+
+- Name des Systems: RescueCompete
+- Kurzbeschreibung der Nutzung
+- Redirect-URL, z. B. `https://your-host/controller/OidcSsoCallback.php`
+- Ansprechpartner (Name, E-Mail, DRK-Gliederung)
+
+Antwort enthält typischerweise Issuer-URL, Client-ID und Client-Secret.
+
+### Umgebungsvariablen
+
+In `.env` ergänzen und Container neu starten (`docker compose up -d`):
+
+```env
+OIDC_ENABLED=1
+OIDC_ISSUER=https://example-issuer.drkserver.org
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+OIDC_REDIRECT_URI=https://your-host/controller/OidcSsoCallback.php
+OIDC_LOGIN_LABEL=Mit drkserver anmelden
+```
+
+`OIDC_LOGIN_LABEL` steuert den Text des SSO-Buttons (Standard: `Mit SSO anmelden`).
+
+Ohne diese Variablen (oder `OIDC_ENABLED=0`) bleibt nur die lokale Anmeldung sichtbar.
+
+### Verhalten
+
+| Szenario | Ergebnis |
+|----------|----------|
+| Admin ohne drkserver | Lokales Passwort-Login wie bisher |
+| Admin mit SSO-E-Mail | Erster passender SSO-Login verknüpft den Admin-Account |
+| Admin legt Nutzer mit Rolle + SSO-E-Mail an | Erster passender drkserver-Login verknüpft den Account und behält die Rolle |
+| Unbekannter drkserver-Login | Neuer Nutzer mit Rolle **Wartend**; Admin weist später eine Rolle zu |
+| Lokaler Nutzer ohne SSO-Felder | Unverändert per Benutzername/Passwort |
+
+Für echte SSO-Tests braucht die Redirect-URI eine öffentlich erreichbare HTTPS-URL (oder einen Tunnel). Lokal reicht weiterhin das Passwort-Login.
+
+### Lokal testen mit Keycloak (optional)
+
+Als Ersatz für drkserver gibt es ein Compose-Overlay mit Keycloak:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.keycloak.yml up -d
+```
+
+Das Overlay setzt die OIDC-Env-Variablen am App-Container (unabhängig von `.env`) und startet Keycloak:
+
+| Was | Wert |
+|-----|------|
+| Keycloak Admin | http://localhost:8081 — `admin` / `admin` |
+| Realm | `rescuecompete` |
+| Client | `rescue-compete` / Secret `local-dev-secret` |
+| Testnutzer | `sso-user` / `sso-user` (E-Mail `sso-user@example.com`) |
+| Redirect URI | `http://localhost/controller/OidcSsoCallback.php` |
+| Button-Text | `Mit Keycloak anmelden` (via `OIDC_LOGIN_LABEL`) |
+
+Realm-Import: [`docker/keycloak/realm-rescuecompete.json`](docker/keycloak/realm-rescuecompete.json).
+
+Danach unter http://localhost/view/Login.php den SSO-Button nutzen (IdP ist lokal Keycloak).
 
 ## Benutzerrollen
 
@@ -69,6 +218,10 @@ docker-compose up -d
 ### Teilnehmer
 - Zugang zu Quiz-Formularen
 - Einsicht in Wettkampfinformationen
+
+### Wartend
+- Angemeldet (z. B. nach erstem SSO), aber ohne Menürechte
+- Wartet auf Rollenzuweisung durch einen Administrator
 
 ## Entwicklungsteam
 

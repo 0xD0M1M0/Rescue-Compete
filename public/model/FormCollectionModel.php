@@ -455,7 +455,7 @@ class FormCollectionModel
     private function generateUniqueToken(int $collectionId, int $formNumber): string
     {
         do {
-            $token = substr(md5($collectionId . $formNumber . time() . rand()), 0, 12);
+            $token = bin2hex(random_bytes(16));
         } while ($this->tokenExists($token));
 
         return $token;

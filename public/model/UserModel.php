@@ -58,20 +58,30 @@ class UserModel
             // Mannschaft_ID und station_ID korrekt verarbeiten
             $mannschaft = !empty($entry['mannschaft_ID']) ? $entry['mannschaft_ID'] : null;
             $stationID = !empty($entry['station_ID']) ? $entry['station_ID'] : null;
+            $passwordHash = array_key_exists('passwordHash', $entry) ? $entry['passwordHash'] : null;
+            $ssoEmail = !empty($entry['sso_email']) ? strtolower(trim($entry['sso_email'])) : null;
+            $oidcSub = !empty($entry['oidc_sub']) ? $entry['oidc_sub'] : null;
+
+            if ($ssoEmail !== null && $this->isSsoEmailTaken($ssoEmail)) {
+                error_log("SSO-E-Mail bereits vergeben: " . $ssoEmail);
+                return null;
+            }
 
             // Nutzer erstellen
             $stmt = $this->db->prepare(
-                "INSERT INTO User (username, passwordHash, acc_typ, mannschaft_ID, station_ID) 
-                 VALUES (:username, :passwordHash, :acc_typ, :mannschaft_ID, :station_ID)"
+                "INSERT INTO User (username, passwordHash, acc_typ, mannschaft_ID, station_ID, oidc_sub, sso_email) 
+                 VALUES (:username, :passwordHash, :acc_typ, :mannschaft_ID, :station_ID, :oidc_sub, :sso_email)"
             );
-            $stmt->bindParam(':username', $entry['username']);
-            $stmt->bindParam(':passwordHash', $entry['passwordHash']);
-            $stmt->bindParam(':acc_typ', $entry['acc_typ']);
-            $stmt->bindParam(':mannschaft_ID', $mannschaft);
-            $stmt->bindParam(':station_ID', $stationID);
-
-            $stmt->execute();
-            return $this->db->lastInsertId();
+            $stmt->execute([
+                ':username' => $entry['username'],
+                ':passwordHash' => $passwordHash,
+                ':acc_typ' => $entry['acc_typ'],
+                ':mannschaft_ID' => $mannschaft,
+                ':station_ID' => $stationID,
+                ':oidc_sub' => $oidcSub,
+                ':sso_email' => $ssoEmail,
+            ]);
+            return (int)$this->db->lastInsertId();
         } catch (PDOException $e) {
             error_log("Fehler in User::create: " . $e->getMessage());
             return null;
@@ -91,9 +101,9 @@ class UserModel
                 $stmt = $this->db->prepare("SELECT * FROM User WHERE User.ID = :id");
                 $stmt->bindParam(':id', $id, PDO::PARAM_INT);
                 $stmt->execute();
-                return $stmt->fetch(PDO::FETCH_ASSOC);
+                return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
             } else {
-                $query = "SELECT User.ID, User.username, User.passwordHash, User.acc_typ, Mannschaft.Teamname 
+                $query = "SELECT User.ID, User.username, User.passwordHash, User.acc_typ, User.oidc_sub, User.sso_email, Mannschaft.Teamname 
                   FROM User 
                   LEFT JOIN Mannschaft ON User.mannschaft_ID = Mannschaft.ID";
 
@@ -114,7 +124,7 @@ class UserModel
     public function readNonAdminUsers(): ?array
     {
         try {
-            $query = "SELECT User.ID, User.username, User.passwordHash, User.acc_typ, Mannschaft.Teamname 
+            $query = "SELECT User.ID, User.username, User.passwordHash, User.acc_typ, User.oidc_sub, User.sso_email, Mannschaft.Teamname 
                       FROM User 
                       LEFT JOIN Mannschaft ON User.mannschaft_ID = Mannschaft.ID 
                       WHERE User.acc_typ != 'Admin'";
@@ -135,7 +145,7 @@ class UserModel
     public function readAdminUsers(): ?array
     {
         try {
-            $query = "SELECT User.ID, User.username, User.passwordHash, User.acc_typ, Mannschaft.Teamname 
+            $query = "SELECT User.ID, User.username, User.passwordHash, User.acc_typ, User.oidc_sub, User.sso_email, Mannschaft.Teamname 
                       FROM User 
                       LEFT JOIN Mannschaft ON User.mannschaft_ID = Mannschaft.ID 
                       WHERE User.acc_typ = 'Admin'";
@@ -151,7 +161,7 @@ class UserModel
     public function bootlegRead(string $name): ?array
     {
         try {
-            $statement = "SELECT ID, username, passwordHash, acc_typ FROM User WHERE username = :name";
+            $statement = "SELECT ID, username, passwordHash, acc_typ, oidc_sub, sso_email FROM User WHERE username = :name";
             $query = $this->db->prepare($statement);
             $query->bindParam(':name', $name);
             $query->execute();
@@ -161,6 +171,166 @@ class UserModel
             error_log("Error in User::bootlegRead: " . $e->getMessage());
             return null;
         }
+    }
+
+    public function findByOidcSub(string $oidcSub): ?array
+    {
+        try {
+            $stmt = $this->db->prepare("SELECT * FROM User WHERE oidc_sub = :oidc_sub LIMIT 1");
+            $stmt->execute([':oidc_sub' => $oidcSub]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result ?: null;
+        } catch (PDOException $e) {
+            error_log("Error in User::findByOidcSub: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function findBySsoEmail(string $email): ?array
+    {
+        try {
+            $normalized = strtolower(trim($email));
+            $stmt = $this->db->prepare(
+                "SELECT * FROM User
+                 WHERE LOWER(sso_email) = :email
+                 ORDER BY CASE WHEN acc_typ = 'Admin' THEN 0 ELSE 1 END, ID ASC
+                 LIMIT 1"
+            );
+            $stmt->execute([':email' => $normalized]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $result ?: null;
+        } catch (PDOException $e) {
+            error_log("Error in User::findBySsoEmail: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Prüft, ob die SSO-E-Mail bereits einem anderen Benutzer gehört.
+     */
+    public function isSsoEmailTaken(string $email, ?int $excludeUserId = null): bool
+    {
+        $normalized = strtolower(trim($email));
+        if ($normalized === '') {
+            return false;
+        }
+
+        try {
+            if ($excludeUserId !== null) {
+                $stmt = $this->db->prepare(
+                    "SELECT COUNT(*) FROM User
+                     WHERE LOWER(sso_email) = :email AND ID != :id"
+                );
+                $stmt->execute([
+                    ':email' => $normalized,
+                    ':id' => $excludeUserId,
+                ]);
+            } else {
+                $stmt = $this->db->prepare(
+                    "SELECT COUNT(*) FROM User WHERE LOWER(sso_email) = :email"
+                );
+                $stmt->execute([':email' => $normalized]);
+            }
+
+            return (int)$stmt->fetchColumn() > 0;
+        } catch (PDOException $e) {
+            error_log("Error in User::isSsoEmailTaken: " . $e->getMessage());
+            return true;
+        }
+    }
+
+    public function linkOidcSub(int $id, string $oidcSub): bool
+    {
+        try {
+            // oidc_sub ist UNIQUE — ggf. von anderem Account lösen (z. B. nach Admin-Bevorzugung)
+            $clear = $this->db->prepare(
+                "UPDATE User SET oidc_sub = NULL WHERE oidc_sub = :oidc_sub AND ID != :id"
+            );
+            $clear->execute([
+                ':oidc_sub' => $oidcSub,
+                ':id' => $id,
+            ]);
+
+            $stmt = $this->db->prepare("UPDATE User SET oidc_sub = :oidc_sub WHERE ID = :id");
+            return $stmt->execute([
+                ':oidc_sub' => $oidcSub,
+                ':id' => $id,
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error in User::linkOidcSub: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function updateAccTyp(int $id, string $accTyp): bool
+    {
+        try {
+            if ($accTyp === 'Admin' &&
+                (!isset($_SESSION['acc_typ']) || $_SESSION['acc_typ'] !== 'Admin')) {
+                return false;
+            }
+
+            $stmt = $this->db->prepare("UPDATE User SET acc_typ = :acc_typ WHERE ID = :id");
+            return $stmt->execute([
+                ':acc_typ' => $accTyp,
+                ':id' => $id,
+            ]) && $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Error in User::updateAccTyp: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function updateSsoEmail(int $id, ?string $ssoEmail): bool
+    {
+        try {
+            $normalized = $ssoEmail !== null && $ssoEmail !== ''
+                ? strtolower(trim($ssoEmail))
+                : null;
+
+            if ($normalized !== null && $this->isSsoEmailTaken($normalized, $id)) {
+                return false;
+            }
+
+            $stmt = $this->db->prepare("UPDATE User SET sso_email = :sso_email WHERE ID = :id");
+            return $stmt->execute([
+                ':sso_email' => $normalized,
+                ':id' => $id,
+            ]);
+        } catch (PDOException $e) {
+            error_log("Error in User::updateSsoEmail: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Legt einen SSO-Benutzer ohne Rolle an (Wartend).
+     */
+    public function createFromSso(string $oidcSub, string $email, ?string $preferredUsername = null): ?int
+    {
+        $base = $preferredUsername ?: strstr($email, '@', true) ?: $email;
+        $base = preg_replace('/[^a-zA-Z0-9._-]/', '', $base) ?: 'user';
+        $base = substr($base, 0, 28);
+
+        $username = $base;
+        $suffix = 1;
+        while ($this->bootlegRead($username) !== null) {
+            $username = substr($base, 0, 28) . $suffix;
+            $suffix++;
+            if ($suffix > 99) {
+                return null;
+            }
+        }
+
+        return $this->create([
+            'username' => $username,
+            'passwordHash' => null,
+            'acc_typ' => 'Wartend',
+            'mannschaft_ID' => null,
+            'station_ID' => null,
+            'oidc_sub' => $oidcSub,
+            'sso_email' => strtolower(trim($email)),
+        ]);
     }
 
     /**
@@ -260,16 +430,40 @@ class UserModel
             // Mannschaft_ID und station_ID korrekt verarbeiten
             $mannschaft = !empty($entry['mannschaft_ID']) ? $entry['mannschaft_ID'] : null;
             $stationID = !empty($entry['station_ID']) ? $entry['station_ID'] : null;
+            $ssoEmail = array_key_exists('sso_email', $entry) && $entry['sso_email'] !== null && $entry['sso_email'] !== ''
+                ? strtolower(trim($entry['sso_email']))
+                : null;
 
-            $queryUpdate = "UPDATE User SET username = :username, passwordHash = :passwordHash, acc_typ = :acc_typ, 
-                                    mannschaft_ID = :mannschaft_ID, station_ID = :station_ID WHERE ID = :id";
+            if ($ssoEmail !== null && $this->isSsoEmailTaken($ssoEmail, $id)) {
+                error_log("SSO-E-Mail bereits vergeben bei Update: " . $ssoEmail);
+                return false;
+            }
+
+            // Passwort nur überschreiben, wenn ein neuer Hash mitgegeben wurde
+            if (array_key_exists('passwordHash', $entry) && $entry['passwordHash'] !== null && $entry['passwordHash'] !== '') {
+                $queryUpdate = "UPDATE User SET username = :username, passwordHash = :passwordHash, acc_typ = :acc_typ, 
+                                    mannschaft_ID = :mannschaft_ID, station_ID = :station_ID, sso_email = :sso_email WHERE ID = :id";
+                $stmtUpdate = $this->db->prepare($queryUpdate);
+                return $stmtUpdate->execute([
+                    ':username' => $entry['username'],
+                    ':passwordHash' => $entry['passwordHash'],
+                    ':acc_typ' => $entry['acc_typ'],
+                    ':mannschaft_ID' => $mannschaft,
+                    ':station_ID' => $stationID,
+                    ':sso_email' => $ssoEmail,
+                    ':id' => $id
+                ]);
+            }
+
+            $queryUpdate = "UPDATE User SET username = :username, acc_typ = :acc_typ, 
+                                mannschaft_ID = :mannschaft_ID, station_ID = :station_ID, sso_email = :sso_email WHERE ID = :id";
             $stmtUpdate = $this->db->prepare($queryUpdate);
             return $stmtUpdate->execute([
                 ':username' => $entry['username'],
-                ':passwordHash' => $entry['passwordHash'],
                 ':acc_typ' => $entry['acc_typ'],
                 ':mannschaft_ID' => $mannschaft,
                 ':station_ID' => $stationID,
+                ':sso_email' => $ssoEmail,
                 ':id' => $id
             ]);
         } catch (PDOException $e) {

@@ -352,7 +352,7 @@ function loadQuestions() {
         .catch(error => {
             console.error('Error loading questions:', error);
             if (questionsList) {
-                questionsList.innerHTML = `<div class="error">Fehler beim Laden der Fragen: ${error.message}</div>`;
+                questionsList.innerHTML = `<div class="error">Fehler beim Laden der Fragen: ${escapeHtml(error.message)}</div>`;
             }
             showValidationMessage('question_pool', `Fehler beim Laden der Fragen: ${error.message}`);
         });

@@ -24,6 +24,32 @@
     border: 1px solid var(--admin-color);
 }
 
+.sso-linked-badge {
+    color: #1a7a3a;
+    font-weight: 600;
+}
+
+.sso-unlinked-badge {
+    color: #888;
+}
+
+.role-sso-cell {
+    min-width: 200px;
+}
+
+.inline-meta-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sso-email-input {
+    padding: 6px 8px;
+    border: 1px solid var(--ww-blue-60);
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
 /* Account-Typ Status-Badges */
 .status-badge {
     font-weight: bold;
@@ -76,7 +102,8 @@
 
 .password-update-container {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
     padding: 4px;
 }

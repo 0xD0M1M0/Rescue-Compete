@@ -6,6 +6,7 @@ require_once '../model/AnswerModel.php';
 require_once '../controller/QuestionPoolInputController.php';
 require_once '../controller/QuestionInputController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use QuestionPool\QuizPoolModel;
 use Question\QuestionModel;
@@ -13,10 +14,8 @@ use Answer\AnswerModel;
 use QuestionPool\QuestionPoolInputController;
 use Question\QuestionInputController;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Weiterleitung, wenn Berechtigungen nicht korrekt sind
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -76,7 +75,7 @@ $selectedPoolId = isset($_GET['pool_id']) ? intval($_GET['pool_id']) : null;
 $questions = $selectedPoolId ? $questionModel->getQuestionsByPool($selectedPoolId) : [];
 
 // Aktuelle Ansicht bestimmen
-$currentView = $_GET['view'] ?? 'pool_overview';
+$currentView = sanitize_view_param($_GET['view'] ?? null, ['pool_overview', 'pool_create', 'question_overview', 'question_create'], 'pool_overview');
 
 // Formularwerte für Pool (ggf. aus vorherigem POST)
 $poolName = isset($_POST['name']) ? trim($_POST['name']) : "";
@@ -176,7 +175,7 @@ $pageTitle = "Fragen Verwaltung";
                                         <button class="btn small" onclick="viewPoolQuestions(<?php echo $pool['ID']; ?>)">
                                             Fragen anzeigen
                                         </button>
-                                        <button class="btn warning-btn small" onclick="confirmDeletePool(<?php echo $pool['ID']; ?>, '<?php echo addslashes($pool['Name']); ?>')">
+                                        <button class="btn warning-btn small" onclick="confirmDeletePool(<?php echo (int)$pool['ID']; ?>, <?php echo json_encode_for_js($pool['Name']); ?>)">
                                             Löschen
                                         </button>
                                     </div>
@@ -431,7 +430,7 @@ endif;
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Sicherstellen, dass der korrekte Tab angezeigt wird
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
     });
 </script>

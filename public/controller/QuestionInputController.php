@@ -23,6 +23,11 @@ class QuestionInputController {
     }
 
     public function handleRequest() {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+        }
+
         // Fragen hinzufügen (einzeln oder mehrere)
         if (isset($_POST['add_questions'])) {
             $this->handleAddQuestions();
@@ -176,7 +181,7 @@ class QuestionInputController {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
-            $this->message = "Fehler: " . $e->getMessage();
+            $this->message = "Ein Fehler ist aufgetreten.";
             error_log("QuestionInputController::handleAddQuestions: " . $e->getMessage());
         }
     }
@@ -268,7 +273,7 @@ class QuestionInputController {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
-            $this->message = "Fehler: " . $e->getMessage();
+            $this->message = "Ein Fehler ist aufgetreten.";
             error_log("QuestionInputController::handleAddSingleQuestion: " . $e->getMessage());
         }
     }
@@ -306,7 +311,7 @@ class QuestionInputController {
                 $this->message = "Fehler beim Löschen der Frage.";
             }
         } catch (PDOException $e) {
-            $this->message = "Datenbankfehler beim Löschen der Frage: " . $e->getMessage();
+            $this->message = "Ein Fehler ist aufgetreten.";
             error_log("QuestionInputController::handleDeleteQuestion: " . $e->getMessage());
         }
     }
@@ -365,7 +370,7 @@ class QuestionInputController {
                 $this->message = "Fehler beim Löschen der Antwort.";
             }
         } catch (PDOException $e) {
-            $this->message = "Datenbankfehler beim Löschen der Antwort: " . $e->getMessage();
+            $this->message = "Ein Fehler ist aufgetreten.";
             error_log("QuestionInputController::handleDeleteAnswer: " . $e->getMessage());
         }
     }

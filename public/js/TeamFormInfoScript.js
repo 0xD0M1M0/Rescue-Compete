@@ -91,7 +91,7 @@ function loadTeamDetails(teamId) {
                 const teamName = document.querySelector(`[data-team-id="${teamId}"]`).closest('tr').querySelector('td:first-child').textContent;
                 renderTeamDetails(data.forms, teamName);
             } else {
-                modalContent.innerHTML = `<p class="error-message">${data.message || 'Ein Fehler ist aufgetreten'}</p>`;
+                modalContent.innerHTML = `<p class="error-message">${escapeHtml(data.message || 'Ein Fehler ist aufgetreten')}</p>`;
             }
         })
         .catch(error => {
@@ -129,7 +129,7 @@ function showFormDetails(formId) {
             if (data.success) {
                 renderFormDetails(data.statistics);
             } else {
-                modalContent.innerHTML = `<p class="error-message">${data.message || 'Ein Fehler ist aufgetreten'}</p>`;
+                modalContent.innerHTML = `<p class="error-message">${escapeHtml(data.message || 'Ein Fehler ist aufgetreten')}</p>`;
             }
         })
         .catch(error => {
@@ -197,13 +197,13 @@ function renderTeamDetails(forms, teamName) {
 
         html += `
             <tr>
-                <td>${form.Titel || 'Unbekanntes Formular'}</td>
-                <td>${form.station_name || '-'}</td>
+                <td>${escapeHtml(form.Titel || 'Unbekanntes Formular')}</td>
+                <td>${escapeHtml(form.station_name || '-')}</td>
                 <td><span class="status-badge ${statusBadgeClass}">${statusText}</span></td>
-                <td>${pointsDisplay}</td>
-                <td>${dateDisplay}</td>
+                <td>${escapeHtml(String(pointsDisplay))}</td>
+                <td>${escapeHtml(String(dateDisplay))}</td>
                 <td>
-                    <a href="../view/FormView.php?token=${form.token}" target="_blank" class="details-button small">
+                    <a href="../view/FormView.php?token=${encodeURIComponent(form.token || '')}" target="_blank" class="details-button small">
                         Öffnen
                     </a>
                 </td>
@@ -345,11 +345,11 @@ function renderFormDetails(stats) {
 
             html += `
                 <tr>
-                    <td>${team.Teamname || 'Unbekannt'}</td>
-                    <td>${team.Kreisverband || '-'}</td>
+                    <td>${escapeHtml(team.Teamname || 'Unbekannt')}</td>
+                    <td>${escapeHtml(team.Kreisverband || '-')}</td>
                     <td><span class="status-badge ${statusBadgeClass}">${statusText}</span></td>
-                    <td>${points}</td>
-                    <td>${date}</td>
+                    <td>${escapeHtml(String(points))}</td>
+                    <td>${escapeHtml(String(date))}</td>
                 </tr>
             `;
         });
@@ -361,4 +361,13 @@ function renderFormDetails(stats) {
     `;
 
     modalContent.innerHTML = html;
+}
+
+/**
+ * Escape HTML for safe insertion into innerHTML
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
 }

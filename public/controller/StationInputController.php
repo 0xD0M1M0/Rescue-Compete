@@ -12,6 +12,11 @@ class StationInputController {
     }
 
     public function handleRequest() {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+        }
+
         // AJAX-Request: zugeordnete + alle Stationen einer Wertung (für Checkbox-Vorbelegung)
         if (isset($_GET['action']) && $_GET['action'] === 'getStationsForWertung') {
             $this->handleAjaxGetStationsForWertung();
@@ -30,7 +35,8 @@ class StationInputController {
                 $this->message = "Bitte wählen Sie eine Wertung aus.";
             } elseif ($this->model->setStationsForWertung($wertungId, $stationIds)) {
                 if (session_status() == PHP_SESSION_NONE) {
-                    session_start();
+                    require_once __DIR__ . '/../CookieMonster.php';
+                    startSecureSession();
                 }
                 $count = count($stationIds);
                 $_SESSION['success_message'] = $count === 1

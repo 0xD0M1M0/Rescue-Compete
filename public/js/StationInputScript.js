@@ -123,7 +123,7 @@ function loadStationCheckboxes() {
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
-                list.innerHTML = `<p class="warning">${data.error || 'Fehler beim Laden der Stationen.'}</p>`;
+                list.innerHTML = `<p class="warning">${escapeHtml(data.error || 'Fehler beim Laden der Stationen.')}</p>`;
                 return;
             }
 

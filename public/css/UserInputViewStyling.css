@@ -45,6 +45,39 @@
     border-color: var(--teilnehmer-color);
 }
 
+.status-badge.wartend {
+    background-color: rgba(128, 128, 128, 0.12);
+    color: #666;
+    border-color: #999;
+}
+
+.sso-linked-badge {
+    color: #1a7a3a;
+    font-weight: 600;
+}
+
+.sso-unlinked-badge {
+    color: #888;
+}
+
+.role-sso-cell {
+    min-width: 220px;
+}
+
+.inline-meta-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.role-select,
+.sso-email-input {
+    padding: 6px 8px;
+    border: 1px solid var(--ww-blue-60);
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
 /* Aktueller Benutzer-Indikator */
 .current-user-indicator {
     color: var(--ww-blue-100);
@@ -65,7 +98,8 @@
 
 .password-update-container {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: 8px;
     padding: 4px;
 }

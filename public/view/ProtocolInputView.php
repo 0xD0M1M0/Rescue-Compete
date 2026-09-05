@@ -5,15 +5,14 @@ require_once '../model/ProtocolModel.php';
 require_once '../model/StationModel.php';
 require_once '../controller/ProtocolInputController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use Protocol\ProtocolInputController;
 use Protocol\ProtocolModel;
 use Station\StationModel;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Weiterleitung, wenn Berechtigungen nicht korrekt sind
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -46,7 +45,7 @@ $maxPunkte = isset($_POST['max_Punkte']) ? trim($_POST['max_Punkte']) : "";
 $stationName = isset($_POST['stationName']) ? trim($_POST['stationName']) : "";
 
 // Aktuelle Ansicht bestimmen
-$currentView = $_GET['view'] ?? 'overview';
+$currentView = sanitize_view_param($_GET['view'] ?? null, ['overview', 'create'], 'overview');
 
 // Seiten-Titel
 $pageTitle = "Verwaltung der Protokolle";
@@ -71,7 +70,7 @@ $pageTitle = "Verwaltung der Protokolle";
 
     <!-- JavaScript-Konstanten übergeben -->
     <script>
-        const stationen = <?php echo json_encode($stationen, JSON_HEX_TAG); ?>;
+        const stationen = <?php echo json_encode_for_js($stationen); ?>;
     </script>
 </head>
 <body class="has-navbar">
@@ -144,7 +143,7 @@ $pageTitle = "Verwaltung der Protokolle";
                                 <td class="action-cell">
                                     <div class="button-group">
                                         <button class="btn warning-btn small"
-                                                onclick="confirmDeleteProtocol(<?php echo htmlspecialchars($protokoll['protocol_Nr'] ?? ''); ?>, '<?php echo addslashes($protokoll['Name']); ?>')">
+                                                onclick="confirmDeleteProtocol(<?php echo (int)($protokoll['protocol_Nr'] ?? 0); ?>, <?php echo json_encode_for_js($protokoll['Name']); ?>)">
                                             Löschen
                                         </button>
                                     </div>
@@ -249,7 +248,7 @@ echo CustomAlertBox::renderSimpleConfirm(
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Sicherstellen, dass der korrekte Tab angezeigt wird
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
 
         initSortableTable(document.querySelector('.data-table'));

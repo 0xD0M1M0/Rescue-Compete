@@ -1,24 +1,37 @@
 <?php
 require_once __DIR__ . '/CookieMonster.php';
+require_once __DIR__ . '/auth/OidcClient.php';
 
-// Sichere Session-Einstellungen BEVOR session_start()
-initializeSecureSession();
+startSecureSession();
 
-// Session starten
-session_start();
-
-// Anzeigen aller auftretenden Fehler
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Aufrufen der Funktion zum Ausloggen
 logout();
 
 /**
  * Loggt den aktuell angemeldeten Benutzer aus und löscht die Session.
+ * Bei OIDC-Login zusätzlich IdP-Session beenden (sonst bleibt man bei Keycloak angemeldet).
  */
 function logout() {
+    $viaOidc = !empty($_SESSION['login_via_oidc']);
+    $idToken = isset($_SESSION['oidc_id_token']) ? (string)$_SESSION['oidc_id_token'] : null;
+
+    // Absolute URL für die Weiterleitung
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
+    $host = htmlspecialchars($_SERVER["HTTP_HOST"]);
+    $baseUrl = $protocol . $host . rtrim(dirname(dirname(htmlspecialchars($_SERVER["PHP_SELF"]))), "/\\");
+    $loginUrl = "$baseUrl/view/Login.php";
+
+    $oidcLogoutUrl = null;
+    if ($viaOidc) {
+        $client = OidcClient::fromEnv();
+        if ($client !== null) {
+            try {
+                $oidcLogoutUrl = $client->buildLogoutUrl($idToken, $loginUrl);
+            } catch (Throwable $e) {
+                error_log('OIDC logout URL failed: ' . $e->getMessage());
+            }
+        }
+    }
+
     // Session-Array leeren
     session_unset();
 
@@ -28,13 +41,11 @@ function logout() {
     // Session löschen
     session_destroy();
 
-    // Absolute URL für die Weiterleitung
-    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https://' : 'http://';
-    $host = htmlspecialchars($_SERVER["HTTP_HOST"]);
-    $baseUrl = $protocol . $host . rtrim(dirname(dirname(htmlspecialchars($_SERVER["PHP_SELF"]))), "/\\");
+    if ($oidcLogoutUrl !== null) {
+        header('Location: ' . $oidcLogoutUrl);
+        exit;
+    }
 
-    // Weiterleiten zur Login-Seite mit Erfolgsmeldung
-    $redirectUrl = "$baseUrl/view/Login.php";
-    header("Location: $redirectUrl");
-    exit; // Wichtig: Script-Ausführung beenden nach dem Weiterleiten
+    header('Location: ' . $loginUrl);
+    exit;
 }

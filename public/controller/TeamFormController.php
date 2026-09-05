@@ -105,7 +105,8 @@ class TeamFormApiController {
 
             $this->sendSuccessResponse(['forms' => $forms]);
         } catch (PDOException $e) {
-            $this->sendErrorResponse('Fehler beim Abrufen der Formulare: ' . $e->getMessage());
+            error_log('TeamFormController: ' . $e->getMessage());
+            $this->sendErrorResponse('Fehler beim Abrufen der Formulare.');
         }
     }
 
@@ -151,7 +152,8 @@ class TeamFormApiController {
                 'completion_percentage' => ($totalForms > 0) ? round(($completedForms / $totalForms) * 100, 1) : 0
             ]);
         } catch (PDOException $e) {
-            $this->sendErrorResponse('Fehler beim Abrufen des Team-Status: ' . $e->getMessage());
+            error_log('TeamFormController: ' . $e->getMessage());
+            $this->sendErrorResponse('Fehler beim Abrufen des Team-Status.');
         }
     }
 
@@ -189,7 +191,8 @@ class TeamFormApiController {
                 'forms' => $forms
             ]);
         } catch (PDOException $e) {
-            $this->sendErrorResponse('Fehler beim Abrufen der Team-Formulare: ' . $e->getMessage());
+            error_log('TeamFormController: ' . $e->getMessage());
+            $this->sendErrorResponse('Fehler beim Abrufen der Team-Formulare.');
         }
     }
 
@@ -246,7 +249,8 @@ class TeamFormApiController {
                 'statistics' => $statistics
             ]);
         } catch (PDOException $e) {
-            $this->sendErrorResponse('Fehler beim Abrufen der Formular-Statistiken: ' . $e->getMessage());
+            error_log('TeamFormController: ' . $e->getMessage());
+            $this->sendErrorResponse('Fehler beim Abrufen der Formular-Statistiken.');
         }
     }
 
@@ -272,7 +276,8 @@ class TeamFormApiController {
                 'total_form_count' => $totalFormCount
             ]);
         } catch (PDOException $e) {
-            $this->sendErrorResponse('Fehler beim Abrufen der Team-Statistiken: ' . $e->getMessage());
+            error_log('TeamFormController: ' . $e->getMessage());
+            $this->sendErrorResponse('Fehler beim Abrufen der Team-Statistiken.');
         }
     }
 
@@ -297,7 +302,8 @@ class TeamFormApiController {
                 'forms' => $forms
             ]);
         } catch (PDOException $e) {
-            $this->sendErrorResponse('Fehler beim Abrufen der Formular-Statistiken: ' . $e->getMessage());
+            error_log('TeamFormController: ' . $e->getMessage());
+            $this->sendErrorResponse('Fehler beim Abrufen der Formular-Statistiken.');
         }
     }
 
@@ -333,7 +339,8 @@ class TeamFormApiController {
                 $this->sendErrorResponse('Fehler beim Zurücksetzen der Ergebnisse.');
             }
         } catch (PDOException $e) {
-            $this->sendErrorResponse('Datenbankfehler: ' . $e->getMessage());
+            error_log('TeamFormController: ' . $e->getMessage());
+            $this->sendErrorResponse('Datenbankfehler.');
         }
     }
 

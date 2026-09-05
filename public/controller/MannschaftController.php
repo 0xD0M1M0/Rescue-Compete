@@ -17,6 +17,11 @@ class MannschaftController {
     }
 
     public function handleRequest() {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+        }
+
         if (isset($_POST['delete_team'])) {
             $this->handleDeleteRequest();
         }

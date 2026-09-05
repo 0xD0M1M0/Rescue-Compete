@@ -451,7 +451,7 @@ function confirmDeleteProtocol(nr, name) {
         const modalBody = modal.querySelector('.modal-body');
         if (modalBody) {
             modalBody.innerHTML = `
-                <p>Möchten Sie das Protokoll <strong>"${name}"</strong> wirklich löschen?</p>
+                <p>Möchten Sie das Protokoll <strong>"${escapeHtml(name)}"</strong> wirklich löschen?</p>
                 <p><em>Alle zugehörigen Daten werden ebenfalls gelöscht.</em></p>
             `;
         }
@@ -680,6 +680,15 @@ function updateNoDataMessage(visibleCount, selectedStation) {
             table.style.display = 'table';
         }
     }
+}
+
+/**
+ * Escape HTML for safe insertion into innerHTML
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
 }
 
 // Globale Funktionen für HTML-Inline-Events

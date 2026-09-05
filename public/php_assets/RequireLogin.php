@@ -12,9 +12,9 @@
  */
 function requireLogin(): void
 {
-    if (session_status() === PHP_SESSION_NONE) {
-        session_start();
-    }
+    require_once __DIR__ . '/../CookieMonster.php';
+    startSecureSession();
+    enforce_post_same_origin();
 
     if (isset($_SESSION["login"]) && $_SESSION["login"] === "ok") {
         return;

@@ -8,6 +8,37 @@ let adminToDelete = null;
 let deleteForm = null;
 
 /**
+ * CSRF token from meta tag or hidden input, if present
+ */
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) {
+        return meta.content;
+    }
+    const input = document.querySelector('input[name="_csrf"]');
+    return input ? input.value : '';
+}
+
+/**
+ * Append CSRF token to FormData or a form element when available
+ */
+function appendCsrf(target) {
+    const token = getCsrfToken();
+    if (!token) {
+        return;
+    }
+    if (target instanceof FormData) {
+        target.append('_csrf', token);
+        return;
+    }
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = '_csrf';
+    input.value = token;
+    target.appendChild(input);
+}
+
+/**
  * Tab-Navigation
  */
 function showTab(tabName) {
@@ -93,6 +124,7 @@ function deleteAdmin() {
 
     form.appendChild(deleteIdInput);
     form.appendChild(deleteActionInput);
+    appendCsrf(form);
     document.body.appendChild(form);
 
     form.submit();
@@ -122,6 +154,7 @@ function updateUserPassword(userId) {
     formData.append('update_password', '1');
     formData.append('user_id', userId);
     formData.append('new_password', newPassword);
+    appendCsrf(formData);
 
     fetch(window.location.href, {
         method: 'POST',
@@ -237,6 +270,7 @@ function validateAdminForm() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
     const passwordConfirm = document.getElementById('password_confirm').value;
+    const ssoEmail = (document.getElementById('sso_email')?.value || '').trim();
 
     let isValid = true;
 
@@ -251,23 +285,33 @@ function validateAdminForm() {
         clearFieldError('username');
     }
 
-    // Passwort prüfen
-    if (!password) {
-        showFieldError('password', 'Passwort ist erforderlich');
+    // Passwort oder SSO-E-Mail prüfen
+    if (!password && !ssoEmail) {
+        showFieldError('password', 'Passwort oder SSO-E-Mail ist erforderlich');
         isValid = false;
     } else {
         clearFieldError('password');
     }
 
-    // Passwort-Bestätigung prüfen
-    if (!passwordConfirm) {
-        showFieldError('password_confirm', 'Passwort-Bestätigung ist erforderlich');
-        isValid = false;
-    } else if (password !== passwordConfirm) {
-        showFieldError('password_confirm', 'Passwörter stimmen nicht überein');
-        isValid = false;
+    if (password) {
+        if (!passwordConfirm) {
+            showFieldError('password_confirm', 'Passwort-Bestätigung ist erforderlich');
+            isValid = false;
+        } else if (password !== passwordConfirm) {
+            showFieldError('password_confirm', 'Passwörter stimmen nicht überein');
+            isValid = false;
+        } else {
+            clearFieldError('password_confirm');
+        }
     } else {
         clearFieldError('password_confirm');
+    }
+
+    if (ssoEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ssoEmail)) {
+        showFieldError('sso_email', 'SSO-E-Mail ist ungültig');
+        isValid = false;
+    } else {
+        clearFieldError('sso_email');
     }
 
     return isValid;

@@ -1,8 +1,6 @@
 <?php global $pageTitle;
-// Stellen Sie sicher, dass die Session gestartet wurde
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Prüfung ob Benutzer eingeloggt ist
 $isLoggedIn = isset($_SESSION["login"]) && $_SESSION["login"] === "ok";

@@ -15,6 +15,7 @@ require_once '../model/TeamFormRelationModel.php';
 require_once '../model/MannschaftModel.php';
 require_once '../controller/QuestionFormInputController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use Mannschaft\MannschaftModel;
 use QuestionForm\QuestionFormInputController;
@@ -307,7 +308,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'success') {
 <script>
     // Übergabe der Daten an das JavaScript
     const API_ENDPOINT = '<?php echo $_SERVER["PHP_SELF"]; ?>'; // Verwendet die aktuelle Seite für AJAX
-    let stations = <?php echo json_encode($stations, JSON_HEX_TAG); ?>;
+    let stations = <?php echo json_encode_for_js($stations); ?>;
     let selectedPoolId = <?php echo $selectedPoolId ? $selectedPoolId : 'null'; ?>;
 </script>
 <script src="../js/ModalUtils.js"></script>

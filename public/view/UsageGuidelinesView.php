@@ -1,8 +1,8 @@
 <?php
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 $pageTitle = "Nutzungsrichtlinien";
 ?>
 

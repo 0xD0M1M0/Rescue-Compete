@@ -1,0 +1,40 @@
+# Optional local OIDC IdP (Keycloak) — not loaded automatically.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.keycloak.yml up -d
+#
+# Admin UI:  http://localhost:8081  (admin / admin)
+# Realm:     rescuecompete
+# Test user: sso-user / sso-user  (email: sso-user@example.com)
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: "8081"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./docker/keycloak/realm-rescuecompete.json:/opt/keycloak/data/import/realm-rescuecompete.json:ro
+    restart: unless-stopped
+
+  # PHP must reach Keycloak via localhost:8081 (same URL the browser uses in discovery).
+  project:
+    extra_hosts:
+      - "localhost:host-gateway"
+    environment:
+      OIDC_ENABLED: "1"
+      OIDC_ISSUER: http://localhost:8081/realms/rescuecompete
+      OIDC_CLIENT_ID: rescue-compete
+      OIDC_CLIENT_SECRET: local-dev-secret
+      OIDC_REDIRECT_URI: http://localhost/controller/OidcSsoCallback.php
+      OIDC_LOGIN_LABEL: Mit Keycloak anmelden
+    depends_on:
+      - keycloak

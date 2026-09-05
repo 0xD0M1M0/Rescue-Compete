@@ -15,12 +15,16 @@ class ScoringInputController {
         $this->model = $model;
 
         // Session starten wenn noch nicht aktiv
-        if (session_status() == PHP_SESSION_NONE) {
-            session_start();
-        }
+        require_once __DIR__ . '/../CookieMonster.php';
+        startSecureSession();
     }
 
     public function handleRequest() {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+        }
+
         // AJAX-Request für zugewiesene Teams
         if (isset($_GET['action']) && $_GET['action'] === 'getAssignedTeams') {
             $this->handleAjaxGetAssignedTeams();
@@ -211,7 +215,7 @@ class ScoringInputController {
             http_response_code(400);
             echo json_encode([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => 'Fehler beim Abrufen der Teams.'
             ]);
 
             // Fehler loggen

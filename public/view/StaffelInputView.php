@@ -4,14 +4,13 @@ require_once '../db/DbConnection.php';
 require_once '../model/StaffelModel.php';
 require_once '../controller/StaffelInputController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use Staffel\StaffelInputController;
 use Staffel\StaffelModel;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Weiterleitung, wenn Berechtigungen nicht korrekt sind
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -50,7 +49,7 @@ if (isset($_SESSION['success_message'])) {
 $name = isset($_POST['name']) ? trim($_POST['name']) : "";
 
 // Aktuelle Ansicht bestimmen
-$currentView = $_GET['view'] ?? 'overview';
+$currentView = sanitize_view_param($_GET['view'] ?? null, ['overview', 'create', 'assign', 'assignment-overview'], 'overview');
 
 // Seiten-Titel
 $pageTitle = "Verwaltung der Staffeln";
@@ -146,7 +145,7 @@ $pageTitle = "Verwaltung der Staffeln";
                                 <td class="action-cell">
                                     <div class="button-group">
                                         <button class="btn warning-btn small"
-                                                onclick="confirmDeleteStaffel(<?php echo htmlspecialchars($staffel['ID']); ?>, '<?php echo addslashes($staffel['name']); ?>')">
+                                                onclick="confirmDeleteStaffel(<?php echo (int)$staffel['ID']; ?>, <?php echo json_encode_for_js($staffel['name']); ?>)">
                                             Löschen
                                         </button>
                                     </div>
@@ -308,7 +307,7 @@ echo CustomAlertBox::renderSimpleConfirm(
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Sicherstellen, dass der korrekte Tab angezeigt wird
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
 
         initSortableTable(document.querySelector('.data-table'));

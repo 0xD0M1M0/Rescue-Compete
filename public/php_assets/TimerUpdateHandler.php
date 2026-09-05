@@ -319,5 +319,5 @@ try {
     }
 } catch (Exception $e) {
     logTimerAction("Fehler: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Ein Fehler ist aufgetreten.']);
 }

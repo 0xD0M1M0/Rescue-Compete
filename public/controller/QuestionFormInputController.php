@@ -190,7 +190,8 @@ class QuestionFormInputController
                     $newId = $this->questionModel->create($data);
                     echo json_encode(['success' => true, 'id' => $newId]);
                 } catch (Exception $e) {
-                    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+                    error_log($e->getMessage());
+                    echo json_encode(['success' => false, 'message' => 'Ein Fehler ist aufgetreten.']);
                 }
                 break;
 
@@ -329,7 +330,7 @@ class QuestionFormInputController
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
-                'message' => "Fehler beim Erstellen der Formulare: " . $e->getMessage()
+                'message' => 'Fehler beim Erstellen der Formulare.'
             ];
         }
     }

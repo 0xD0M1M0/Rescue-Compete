@@ -1,6 +1,7 @@
 <?php
-// Starte die Session am Anfang der Seite
-session_start();
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 require_once '../db/DbConnection.php';
 require_once '../controller/CompetitionResetController.php';
@@ -83,6 +84,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>Staffeln zurücksetzen</h3>
                 <p>Löscht alle Staffeln und deren Verbindungen zu Mannschaften.</p>
                 <form method="POST" action="" class="reset-form" id="form-staffeln">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_staffeln" value="1">
                     <div class="form-actions standard-card">
                         <div class="confirm-checkbox">
@@ -99,6 +101,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>Stationen zurücksetzen</h3>
                 <p>Löscht alle Stationen, Protokolle und deren Verbindungen.</p>
                 <form method="POST" action="" class="reset-form" id="form-stationen">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_stationen" value="1">
                     <div class="form-actions standard-card">
                         <div class="confirm-checkbox">
@@ -115,6 +118,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>Protokolle zurücksetzen</h3>
                 <p>Löscht alle Protokolle und deren Verbindungen zu Mannschaften.</p>
                 <form method="POST" action="" class="reset-form" id="form-protokolle">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_protokolle" value="1">
                     <div class="form-actions standard-card">
                         <div class="confirm-checkbox">
@@ -131,6 +135,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>Mannschaften zurücksetzen</h3>
                 <p>Löscht alle Mannschaften und deren Verbindungen.</p>
                 <form method="POST" action="" class="reset-form" id="form-mannschaften">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_mannschaften" value="1">
                     <div class="form-actions standard-card">
                         <div class="confirm-checkbox">
@@ -147,6 +152,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>Formulare zurücksetzen</h3>
                 <p>Löscht alle Formulare und deren Verbindungen. Die Fragenpools bleiben erhalten.</p>
                 <form method="POST" action="" class="reset-form" id="form-formulare">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_formulare" value="1">
                     <div class="form-actions standard-card">
                         <div class="confirm-checkbox">
@@ -163,6 +169,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>Wertungen zurücksetzen</h3>
                 <p>Löscht alle Wertungsklassen und deren Verbindungen zu Mannschaften.</p>
                 <form method="POST" action="" class="reset-form" id="form-wertungen">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_wertungen" value="1">
                     <div class="form-actions standard-card">
                         <div class="confirm-checkbox">
@@ -179,6 +186,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>Benutzer zurücksetzen</h3>
                 <p>Löscht alle Benutzer außer dem aktuell angemeldeten Benutzer.</p>
                 <form method="POST" action="" class="reset-form" id="form-users">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_users" value="1">
                     <div class="form-actions standard-card">
                         <div class="confirm-checkbox">
@@ -195,6 +203,7 @@ $pageTitle = "Wettkampf zurücksetzen";
                 <h3>ALLE DATEN ZURÜCKSETZEN</h3>
                 <p>Löscht <strong>ALLE</strong> Wettkampfdaten außer dem aktuell angemeldeten Benutzer.</p>
                 <form method="POST" action="" class="reset-form" id="form-all">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="reset_all" value="1">
                     <div class="form-actions large-card">
                         <div class="confirm-checkbox">

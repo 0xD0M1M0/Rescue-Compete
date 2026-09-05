@@ -70,7 +70,8 @@ class QrRedirectController
             }
 
         } catch (PDOException $e) {
-            $this->message = "Datenbankfehler: " . $e->getMessage();
+            error_log("Datenbankfehler:" . $e->getMessage());
+            $this->message = "Ein Fehler ist aufgetreten.";
             error_log("Error in QrRedirectController::processQrCodeRedirect: " . $e->getMessage());
             return null;
         }
@@ -102,7 +103,8 @@ class QrRedirectController
             return null;
 
         } catch (PDOException $e) {
-            $this->message = "Datenbankfehler: " . $e->getMessage();
+            error_log("Datenbankfehler:" . $e->getMessage());
+            $this->message = "Ein Fehler ist aufgetreten.";
             error_log("Error in QrRedirectController::getTeamIdForUser: " . $e->getMessage());
             return null;
         }

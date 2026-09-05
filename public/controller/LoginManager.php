@@ -2,122 +2,65 @@
 require_once '../db/DbConnection.php';
 require_once '../model/UserModel.php';
 require_once '../CookieMonster.php';
+require_once __DIR__ . '/../auth/PasswordHash.php';
+require_once __DIR__ . '/../auth/SessionLogin.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use Station\UserModel;
 
-// WICHTIG: Sichere Session-Einstellungen BEVOR session_start()
-initializeSecureSession();
+startSecureSession();
+enforce_post_same_origin();
 
-// Jetzt die Session starten
-session_start();
-
-// Debug: Session-Status prüfen
-error_log("Session-Status: " . session_status());
-error_log("Session-ID: " . session_id());
-
-// Prüfe die Datenbankverbindung
 if (!isset($conn) || !($conn instanceof PDO)) {
     error_log("Datenbankverbindung nicht verfügbar");
     require __DIR__ . '/../php_assets/DbErrorPage.php'; die();
 }
 
-// Initialisiere das UserModel
 $model = new UserModel($conn);
 
-// QR-Code-Weiterleitung prüfen
 $hasQrRedirect = !empty($_POST['redirect_qrcode']);
 $qrCode = $hasQrRedirect ? $_POST['redirect_qrcode'] : '';
 
-// Standardmäßig auf Login-Seite zurückleiten (relative Pfade — Protokoll/Host bleibt unverändert)
 $redirectPath = "/view/Login.php";
-$errorFlag = "1"; // Standardfehler: Fehlende Eingabe
+$errorFlag = "1";
 
-// Formularwerte validieren und verarbeiten
 $username = isset($_POST['username']) ? trim($_POST['username']) : "";
 $password = isset($_POST['password']) ? trim($_POST['password']) : "";
 
-// Debug: Login-Versuch protokollieren
-error_log("Login-Versuch für Benutzer: " . $username);
-
-// Prüfe, ob Benutzername und Passwort ausgefüllt sind
 if (!empty($username) && !empty($password)) {
-    // Hole Benutzerdaten aus der Datenbank
     $user = $model->bootlegRead($username);
 
     if ($user) {
-        error_log("Benutzer gefunden: " . print_r($user, true));
-
-        // Nutzer gefunden, Passwort überprüfen
-        $salt = "Zehn zahme Ziegen zogen zehn Zentner Zucker zum Zoo";
-        $algo = "md5";
-        $pw_hash = hash_hmac($algo, $password, $salt);
-
-        if ($pw_hash === $user["passwordHash"]) {
-            // Passwort korrekt - Login erfolgreich
-            error_log("Login erfolgreich für Benutzer: " . $username);
-
-            // Session-Daten setzen
-            $_SESSION["id"] = $user["ID"];
-            $_SESSION["login"] = "ok";
-            $_SESSION["username"] = $username;
-
-            // Benutzertyp in Session speichern, wenn verfügbar
-            if (isset($user["acc_typ"])) {
-                $_SESSION["acc_typ"] = $user["acc_typ"];
+        // SSO-verknüpfte Accounts: nur IdP-Login
+        if (!empty($user['oidc_sub']) || empty($user['passwordHash'])) {
+            $errorFlag = "sso_only";
+        } elseif (PasswordHash::verify($password, $user["passwordHash"])) {
+            if (PasswordHash::needsRehash($user["passwordHash"])) {
+                $upgraded = PasswordHash::hash($password);
+                if (!$model->updatePassword((int)$user["ID"], $upgraded)) {
+                    error_log("Warnung: Passwort-Hash konnte nicht modernisiert werden für User-ID " . (int)$user["ID"]);
+                }
             }
 
-            // Debug: Session-Daten nach dem Setzen prüfen
-            error_log("Session-Daten gesetzt: " . print_r($_SESSION, true));
+            establishUserSession($user);
 
-            // Session-Cookie mit verlängerter Lebensdauer erstellen
-            $cookieResult = createSessionCookie();
-            if (!$cookieResult) {
-                error_log("Warnung: Session-Cookie konnte nicht gesetzt werden");
-            }
-
-            // Bei QR-Code-Weiterleitung direkt zum FormRedirect gehen
             if ($hasQrRedirect) {
-                $redirectPath = "/view/FormRedirect.php?code=" . urlencode($qrCode);
-            } elseif (!empty($_SESSION['return_after_login'])
-                      && is_string($_SESSION['return_after_login'])
-                      && $_SESSION['return_after_login'][0] === '/'
-                      && !str_starts_with($_SESSION['return_after_login'], '//')
-                      && strpos($_SESSION['return_after_login'], '://') === false) {
-                // Zurück zur ursprünglich angeforderten Seite
-                $redirectPath = $_SESSION['return_after_login'];
-                unset($_SESSION['return_after_login']);
-            } else {
-                // Auf die Startseite weiterleiten
-                $redirectPath = "/index.php";
+                $_SESSION['redirect_code'] = $qrCode;
             }
-            $errorFlag = null; // Kein Fehler bei erfolgreichem Login
+            redirectAfterLogin();
         } else {
-            // Passwort falsch
-            error_log("Falsches Passwort für Benutzer: " . $username);
-            $errorFlag = "3"; // Fehlercode: Falsches Passwort
+            $errorFlag = "3";
         }
     } else {
-        // Nutzer nicht gefunden
-        error_log("Benutzer nicht gefunden: " . $username);
-        $errorFlag = "2"; // Fehlercode: Benutzer nicht gefunden
+        $errorFlag = "2";
     }
+}
+
+if ($hasQrRedirect && strpos($redirectPath, "Login.php") !== false) {
+    $redirectPath .= "?f=" . $errorFlag . "&redirect=form&code=" . urlencode($qrCode);
 } else {
-    error_log("Leere Eingabe: Username='" . $username . "', Password='" . (empty($password) ? 'leer' : 'gefüllt') . "'");
+    $redirectPath .= "?f=" . $errorFlag;
 }
 
-// Füge Fehlercode zur Weiterleitung hinzu, falls vorhanden
-if ($errorFlag !== null) {
-    // Bei QR-Code-Weiterleitung, diesen zum Login zurückgeben
-    if ($hasQrRedirect && strpos($redirectPath, "Login.php") !== false) {
-        $redirectPath .= "?f=" . $errorFlag . "&redirect=form&code=" . urlencode($qrCode);
-    } else {
-        $redirectPath .= "?f=" . $errorFlag;
-    }
-}
-
-// Debug: Weiterleitung protokollieren
-error_log("Weiterleitung zu: " . $redirectPath);
-
-// Weiterleitung durchführen
 header("Location: $redirectPath");
-exit; // Wichtig: Beendet die Skriptausführung nach der Weiterleitung
+exit;

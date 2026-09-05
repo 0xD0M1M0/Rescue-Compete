@@ -3,14 +3,13 @@ require_once '../db/DbConnection.php';
 require_once '../model/UserModel.php';
 require_once '../controller/AdminUserInputController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use AdminUser\AdminUserInputController;
 use Station\UserModel;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Prüfen, ob der Benutzer angemeldet ist und Admin-Rechte hat
 if (!isset($_SESSION['id']) || !isset($_SESSION['login']) || $_SESSION['login'] !== 'ok' || !AdminUserInputController::hasAdminPermissions()) {
@@ -50,7 +49,7 @@ if (!empty($sessionMessage)) {
 $adminUsers = $model->readAdminUsers(); // Nur Admin-Benutzer laden
 
 // Aktuelle Ansicht bestimmen
-$currentView = $_GET['view'] ?? 'overview';
+$currentView = sanitize_view_param($_GET['view'] ?? null, ['overview', 'create'], 'overview');
 
 $pageTitle = "Admin-Accounts Verwaltung";
 ?>
@@ -61,6 +60,7 @@ $pageTitle = "Admin-Accounts Verwaltung";
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RescueCompete - <?php echo htmlspecialchars($pageTitle); ?></title>
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="icon" type="image/x-icon" href="../assets/images/logos/ww-favicon.ico">
     <link rel="stylesheet" href="../css/Colors.css">
     <link rel="stylesheet" href="../css/GlobalLayout.css">
@@ -115,8 +115,8 @@ $pageTitle = "Admin-Accounts Verwaltung";
                         <tr>
                             <th>Benutzername</th>
                             <th>Neues Passwort</th>
+                            <th>SSO</th>
                             <th>Account-Typ</th>
-                            <th>Erstellungsdatum</th>
                             <th>Aktionen</th>
                         </tr>
                         </thead>
@@ -125,6 +125,11 @@ $pageTitle = "Admin-Accounts Verwaltung";
                             <tr>
                                 <td>
                                     <strong><?php echo htmlspecialchars($user['username']); ?></strong>
+                                    <?php if (!empty($user['oidc_sub'])): ?>
+                                        <br><small class="sso-linked-badge">SSO verknüpft</small>
+                                    <?php else: ?>
+                                        <br><small class="sso-unlinked-badge">nicht verknüpft</small>
+                                    <?php endif; ?>
                                     <?php if ($user['ID'] == $_SESSION['id']): ?>
                                         <br><small class="current-user-indicator">Sie sind angemeldet</small>
                                     <?php endif; ?>
@@ -143,18 +148,28 @@ $pageTitle = "Admin-Accounts Verwaltung";
                                         </button>
                                     </div>
                                 </td>
+                                <td class="role-sso-cell">
+                                    <form method="POST" class="inline-meta-form">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="user_id" value="<?php echo (int)$user['ID']; ?>">
+                                        <input type="email"
+                                               name="sso_email"
+                                               class="sso-email-input"
+                                               placeholder="SSO-E-Mail"
+                                               value="<?php echo htmlspecialchars($user['sso_email'] ?? ''); ?>">
+                                        <button type="submit" name="update_admin_sso" value="1" class="btn small primary-btn">
+                                            Speichern
+                                        </button>
+                                    </form>
+                                </td>
                                 <td class="type-cell">
                                     <span class="status-badge admin"><?php echo htmlspecialchars($user['acc_typ']); ?></span>
-                                </td>
-                                <td class="date-cell">
-                                    <!-- Hier könnte das Erstellungsdatum stehen, falls verfügbar -->
-                                    -
                                 </td>
                                 <td class="action-cell">
                                     <div class="button-group">
                                         <?php if ($user['ID'] != $_SESSION['id']): ?>
                                             <button class="btn warning-btn small"
-                                                    onclick="confirmDeleteAdmin(<?php echo $user['ID']; ?>, '<?php echo addslashes($user['username']); ?>')">
+                                                    onclick="confirmDeleteAdmin(<?php echo (int)$user['ID']; ?>, <?php echo json_encode_for_js($user['username']); ?>)">
                                                 Löschen
                                             </button>
                                         <?php else: ?>
@@ -176,6 +191,7 @@ $pageTitle = "Admin-Accounts Verwaltung";
                 <h3>Neuen Admin-Account erstellen</h3>
 
                 <form method="POST" id="createAdminForm">
+                    <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="create_admin">
 
                     <div class="form-group">
@@ -186,19 +202,26 @@ $pageTitle = "Admin-Accounts Verwaltung";
                     </div>
 
                     <div class="form-group">
-                        <label for="password">Passwort *</label>
-                        <input type="password" id="password" name="password" required
+                        <label for="password">Passwort</label>
+                        <input type="password" id="password" name="password"
                                placeholder="Sicheres Passwort eingeben">
-                        <small>Das Passwort kann beliebig gewählt werden</small>
+                        <small>Erforderlich für lokale Anmeldung. Optional, wenn SSO-E-Mail gesetzt ist.</small>
                     </div>
 
                     <div class="form-group">
-                        <label for="password_confirm">Passwort bestätigen *</label>
-                        <input type="password" id="password_confirm" name="password_confirm" required
+                        <label for="password_confirm">Passwort bestätigen</label>
+                        <input type="password" id="password_confirm" name="password_confirm"
                                placeholder="Passwort wiederholen">
                         <div class="validation-message" id="password-mismatch">
                             Die Passwörter stimmen nicht überein.
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sso_email">SSO-E-Mail</label>
+                        <input type="email" id="sso_email" name="sso_email"
+                               placeholder="z.B. name@example.org">
+                        <small>Für Konto-Übernahme: E-Mail aus dem IdP. Leer lassen für rein lokale Admins.</small>
                     </div>
 
                     <div class="info-box">
@@ -207,6 +230,7 @@ $pageTitle = "Admin-Accounts Verwaltung";
                             <li>Admin-Accounts haben vollständige Berechtigung über die gesamte Anwendung</li>
                             <li>Admins können andere Admin-Accounts erstellen und löschen</li>
                             <li>Admins können alle anderen Benutzertypen verwalten</li>
+                            <li>Mit SSO-E-Mail übernimmt der Nutzer den Admin-Account beim ersten SSO-Login</li>
                             <li>Sie können Ihren eigenen Account nicht löschen</li>
                         </ul>
                     </div>
@@ -241,6 +265,7 @@ if (!empty($modalData)):
         'username' => $modalData['username'] ?? "",
         'passwordHash' => $modalData['passwordHash'] ?? "",
         'acc_typ' => $modalData['acc_typ'] ?? "",
+        'sso_email' => $modalData['sso_email'] ?? "",
         'duplicate_id' => $modalData['duplicate_id'] ?? "",
         'confirm_update' => "1",
         'add_admin_user' => "1"
@@ -279,7 +304,7 @@ endif;
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Sicherstellen, dass der korrekte Tab angezeigt wird
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
 
         // Duplikat-Modal anzeigen, falls vorhanden

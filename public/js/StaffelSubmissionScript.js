@@ -33,31 +33,59 @@ document.addEventListener("DOMContentLoaded", function() {
             ? `Für die Mannschaft "${teamNames}" wurden bereits Ergebnisse eingetragen. Möchten Sie die bestehenden Ergebnisse überschreiben?`
             : `Für folgende Mannschaften wurden bereits Ergebnisse eingetragen: ${teamNames}. Möchten Sie die bestehenden Ergebnisse überschreiben?`;
 
-        const modalHTML = `
-            <div id="overwriteConfirmModal" class="modal active">
-                <div class="modal-content">
-                    <h2>Ergebnisse überschreiben?</h2>
-                    <p>${message}</p>
-                    <button type="button" class="btn primary-btn" onclick="confirmOverwrite()">Ja, überschreiben</button>
-                    <button type="button" class="btn" onclick="cancelOverwrite()">Abbrechen</button>
-                </div>
-            </div>
-        `;
-
         const existingModal = document.getElementById("overwriteConfirmModal");
         if (existingModal) { existingModal.remove(); }
 
-        document.body.insertAdjacentHTML("beforeend", modalHTML);
+        const modal = document.createElement("div");
+        modal.id = "overwriteConfirmModal";
+        modal.className = "modal active";
+
+        const content = document.createElement("div");
+        content.className = "modal-content";
+
+        const heading = document.createElement("h2");
+        heading.textContent = "Ergebnisse überschreiben?";
+
+        const paragraph = document.createElement("p");
+        paragraph.textContent = message;
+
+        const confirmBtn = document.createElement("button");
+        confirmBtn.type = "button";
+        confirmBtn.className = "btn primary-btn";
+        confirmBtn.textContent = "Ja, überschreiben";
+        confirmBtn.addEventListener("click", function() {
+            closeModal("overwriteConfirmModal");
+            modal.remove();
+            onConfirm();
+        });
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.className = "btn";
+        cancelBtn.textContent = "Abbrechen";
+        cancelBtn.addEventListener("click", function() {
+            closeModal("overwriteConfirmModal");
+            modal.remove();
+        });
+
+        content.appendChild(heading);
+        content.appendChild(paragraph);
+        content.appendChild(confirmBtn);
+        content.appendChild(cancelBtn);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
 
         window.confirmOverwrite = function() {
             closeModal("overwriteConfirmModal");
-            document.getElementById("overwriteConfirmModal").remove();
+            const el = document.getElementById("overwriteConfirmModal");
+            if (el) el.remove();
             onConfirm();
         };
 
         window.cancelOverwrite = function() {
             closeModal("overwriteConfirmModal");
-            document.getElementById("overwriteConfirmModal").remove();
+            const el = document.getElementById("overwriteConfirmModal");
+            if (el) el.remove();
         };
     }
 

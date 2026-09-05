@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `CollectionFormToken` (
                                                      `ID` int(11) NOT NULL,
     `collection_ID` int(11) NOT NULL,
     `formNumber` int(11) NOT NULL,
-    `token` varchar(12) NOT NULL COMMENT 'MD5-Hash (erste 12 Zeichen)',
+    `token` varchar(64) NOT NULL COMMENT 'Cryptographically random token',
     `createdAt` timestamp NULL DEFAULT current_timestamp()
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -144,10 +144,12 @@ CREATE TABLE IF NOT EXISTS `TeamFormInstance` (
 CREATE TABLE IF NOT EXISTS `User` (
                                       `ID` int(11) NOT NULL,
     `username` varchar(32) NOT NULL,
-    `passwordHash` varchar(99) NOT NULL,
+    `passwordHash` varchar(255) DEFAULT NULL,
     `acc_typ` varchar(16) NOT NULL,
     `mannschaft_ID` int(11) DEFAULT NULL,
-    `station_ID` int(11) DEFAULT NULL
+    `station_ID` int(11) DEFAULT NULL,
+    `oidc_sub` varchar(128) DEFAULT NULL,
+    `sso_email` varchar(255) DEFAULT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS `Wertungsklasse` (
@@ -248,6 +250,8 @@ ALTER TABLE `TeamFormInstance`
 
 ALTER TABLE `User`
     ADD PRIMARY KEY (`ID`),
+  ADD UNIQUE KEY `uk_user_oidc_sub` (`oidc_sub`),
+  ADD UNIQUE KEY `uk_user_sso_email` (`sso_email`),
   ADD KEY `mannschaft_ID` (`mannschaft_ID`),
   ADD KEY `station_Nr` (`station_ID`);
 
@@ -525,7 +529,7 @@ WHERE token = tokenValue;
 RETURN tokenCount > 0;
 END$$
 
-CREATE OR REPLACE FUNCTION `resolveFormToken` (`tokenCode` VARCHAR(12))
+CREATE OR REPLACE FUNCTION `resolveFormToken` (`tokenCode` VARCHAR(64))
 RETURNS LONGTEXT CHARSET utf8mb4 COLLATE utf8mb4_bin
 DETERMINISTIC READS SQL DATA
 BEGIN

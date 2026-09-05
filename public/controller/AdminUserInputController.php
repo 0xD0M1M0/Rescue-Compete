@@ -3,6 +3,8 @@ namespace AdminUser;
 
 use Station\UserModel;
 
+require_once __DIR__ . '/../auth/PasswordHash.php';
+
 /**
  * Controller für die Verwaltung von Admin-Benutzern
  * Nur Admin-Benutzer dürfen auf diese Funktionalität zugreifen
@@ -19,9 +21,21 @@ class AdminUserInputController {
     }
 
     public function handleRequest() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+            csrf_require();
+        }
+
         // Passwort-Update
         if (isset($_POST['update_password'])) {
             $this->handlePasswordUpdate();
+            return;
+        }
+
+        // SSO-E-Mail aktualisieren
+        if (isset($_POST['update_admin_sso'])) {
+            $this->handleSsoEmailUpdate();
             return;
         }
 
@@ -54,8 +68,9 @@ class AdminUserInputController {
         // Hinzufügen oder Aktualisieren eines Admin-Nutzers
         if (isset($_POST['add_admin_user'])) {
             $username = trim($_POST['username']);
-            $password = trim($_POST['password']);
-            $passwordConfirm = trim($_POST['password_confirm']);
+            $password = trim($_POST['password'] ?? '');
+            $passwordConfirm = trim($_POST['password_confirm'] ?? '');
+            $ssoEmail = trim($_POST['sso_email'] ?? '');
             $acc_typ = "Admin"; // Fest auf Admin gesetzt
 
             // Validierung der Eingaben
@@ -71,19 +86,36 @@ class AdminUserInputController {
                 return;
             }
 
-            if (empty($password)) {
-                $this->message = "Passwort ist erforderlich.";
+            if ($ssoEmail !== '' && !filter_var($ssoEmail, FILTER_VALIDATE_EMAIL)) {
+                $this->message = "SSO-E-Mail ist ungültig.";
                 $this->messageType = "error";
                 return;
             }
 
-            if ($password !== $passwordConfirm) {
-                $this->message = "Passwörter stimmen nicht überein.";
+            if ($ssoEmail !== '' && $this->model->isSsoEmailTaken($ssoEmail)) {
+                $this->message = "Diese SSO-E-Mail ist bereits einem anderen Benutzer zugeordnet.";
                 $this->messageType = "error";
                 return;
             }
 
-            $passwordHash = hash_hmac("md5", $password, "Zehn zahme Ziegen zogen zehn Zentner Zucker zum Zoo");
+            if ($password === '' && $ssoEmail === '') {
+                $this->message = "Passwort oder SSO-E-Mail ist erforderlich.";
+                $this->messageType = "error";
+                return;
+            }
+
+            if ($password !== '') {
+                if ($password !== $passwordConfirm) {
+                    $this->message = "Passwörter stimmen nicht überein.";
+                    $this->messageType = "error";
+                    return;
+                }
+            }
+
+            $passwordHash = null;
+            if ($password !== '') {
+                $passwordHash = PasswordHash::hash($password);
+            }
 
             $confirmUpdate = isset($_POST['confirm_update']) && $_POST['confirm_update'] == "1";
             $providedDuplicateId = isset($_POST['duplicate_id']) ? intval($_POST['duplicate_id']) : null;
@@ -93,7 +125,8 @@ class AdminUserInputController {
                 'passwordHash' => $passwordHash,
                 'acc_typ' => $acc_typ,
                 'mannschaft_ID' => null, // Admins haben keine Mannschaft
-                'station_ID' => null     // Admins haben keine Station
+                'station_ID' => null,    // Admins haben keine Station
+                'sso_email' => $ssoEmail !== '' ? $ssoEmail : null,
             ];
 
             $result = $this->model->addOrUpdateUser($entry, $confirmUpdate, $providedDuplicateId);
@@ -105,7 +138,8 @@ class AdminUserInputController {
                     'duplicate_id' => $result['duplicate_id'],
                     'username' => $username,
                     'passwordHash' => $passwordHash,
-                    'acc_typ' => $acc_typ
+                    'acc_typ' => $acc_typ,
+                    'sso_email' => $ssoEmail,
                 ];
             } elseif ($result['status'] === 'created') {
                 $_SESSION['notification_message'] = "Admin-Account '{$username}' wurde erfolgreich erstellt.";
@@ -122,6 +156,41 @@ class AdminUserInputController {
                 $this->messageType = "error";
             }
         }
+    }
+
+    private function handleSsoEmailUpdate(): void
+    {
+        $userId = intval($_POST['user_id'] ?? 0);
+        $ssoEmail = trim($_POST['sso_email'] ?? '');
+
+        $existingUser = $this->model->read($userId);
+        if (!$existingUser || $existingUser['acc_typ'] !== 'Admin') {
+            $this->message = "Admin-Account nicht gefunden.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if ($ssoEmail !== '' && !filter_var($ssoEmail, FILTER_VALIDATE_EMAIL)) {
+            $this->message = "SSO-E-Mail ist ungültig.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if ($ssoEmail !== '' && $this->model->isSsoEmailTaken($ssoEmail, $userId)) {
+            $this->message = "Diese SSO-E-Mail ist bereits einem anderen Benutzer zugeordnet.";
+            $this->messageType = "error";
+            return;
+        }
+
+        if ($this->model->updateSsoEmail($userId, $ssoEmail !== '' ? $ssoEmail : null)) {
+            $_SESSION['notification_message'] = "SSO-E-Mail für '{$existingUser['username']}' wurde gespeichert.";
+            $_SESSION['notification_type'] = "success";
+            header("Location: " . $this->redirectUrl . "?view=overview");
+            exit;
+        }
+
+        $this->message = "Fehler beim Speichern der SSO-E-Mail.";
+        $this->messageType = "error";
     }
 
     /**
@@ -151,7 +220,7 @@ class AdminUserInputController {
         }
 
         // Neues Passwort hashen
-        $newPasswordHash = hash_hmac("md5", $newPassword, "Zehn zahme Ziegen zogen zehn Zentner Zucker zum Zoo");
+        $newPasswordHash = PasswordHash::hash($newPassword);
 
         // Passwort aktualisieren
         $success = $this->model->updatePassword($userId, $newPasswordHash);

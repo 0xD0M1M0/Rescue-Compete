@@ -37,6 +37,10 @@ class CompetitionResetController
             return;
         }
 
+        require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+        enforce_post_same_origin();
+        csrf_require();
+
         // Prüfen, ob eine Bestätigung vorliegt
         if (!isset($_POST['confirm']) || $_POST['confirm'] !== "1") {
             $this->setMessage("Bitte bestätigen Sie die Löschung durch Aktivieren der Checkbox.", "error");

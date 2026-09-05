@@ -24,6 +24,11 @@ class ProtocolInputController
      */
     public function handleRequest()
     {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+            require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+            enforce_post_same_origin();
+        }
+
         // Löschen eines Protokolls
         if (isset($_POST['delete_protocol'])) {
             $deleteId = intval($_POST['delete_Nr']);

@@ -5,6 +5,7 @@ require_once '../model/MannschaftModel.php';
 require_once '../model/FormManagementModel.php';
 require_once '../model/StationModel.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use TeamForm\TeamFormRelationModel;
 use Mannschaft\MannschaftModel;
@@ -27,7 +28,8 @@ $message = '';
 $messageType = 'info';
 
 // Nachricht aus der Session abrufen, falls vorhanden
-session_start();
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 if (isset($_SESSION['form_message']) && isset($_SESSION['message_type'])) {
     $message = $_SESSION['form_message'];
     $messageType = $_SESSION['message_type'];
@@ -69,7 +71,8 @@ if (isset($_POST['reset_form'])) {
                 $messageType = 'error';
             }
         } catch (PDOException $e) {
-            $message = "Datenbankfehler: " . $e->getMessage();
+            $message = "Datenbankfehler. Bitte später erneut versuchen.";
+            error_log("TeamFormRelationView: " . $e->getMessage());
             $messageType = 'error';
         }
     } else {
@@ -91,7 +94,8 @@ try {
     $stmt->execute();
     $teamForms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $message = "Datenbankfehler: " . $e->getMessage();
+    $message = "Datenbankfehler. Bitte später erneut versuchen.";
+    error_log("TeamFormRelationView: " . $e->getMessage());
     $messageType = 'error';
     $teamForms = [];
 }

@@ -119,7 +119,8 @@ class StationWeightController {
 
         if ($this->stationModel->setStationWeightsForWertung($wertungId, $idToWeight)) {
             if (session_status() == PHP_SESSION_NONE) {
-                session_start();
+                require_once __DIR__ . '/../CookieMonster.php';
+                startSecureSession();
             }
             $_SESSION['success_message'] = "Gewichtungen erfolgreich gespeichert.";
             header("Location: " . $this->redirectUrl . "?wertung=" . $wertungId);

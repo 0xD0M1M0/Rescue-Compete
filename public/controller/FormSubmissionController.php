@@ -123,7 +123,8 @@ class FormSubmissionController {
         } catch (PDOException $e) {
             // Bei Fehler Transaktion zurückrollen
             $this->db->rollBack();
-            $this->message = "Fehler beim Speichern: " . $e->getMessage();
+            error_log("Fehler beim Speichern:" . $e->getMessage());
+            $this->message = "Ein Fehler ist aufgetreten.";
             error_log("Error in FormSubmissionController::handleSubmission: " . $e->getMessage());
             return false;
         }

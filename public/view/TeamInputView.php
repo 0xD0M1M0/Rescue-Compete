@@ -3,14 +3,13 @@ require_once '../db/DbConnection.php';
 require_once '../model/TeamModel.php';
 require_once '../controller/MannschaftController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use Mannschaft\TeamModel;
 use Station\Controller\MannschaftController;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Berechtigungsprüfung
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -47,7 +46,7 @@ if (!empty($errorData) && isset($_POST['teamname'])) {
 }
 
 // Aktuelle Ansicht bestimmen
-$currentView = $_GET['view'] ?? 'overview';
+$currentView = sanitize_view_param($_GET['view'] ?? null, ['overview', 'create'], 'overview');
 
 // Success-Messages aus URL-Parametern
 $successMessage = '';
@@ -133,7 +132,7 @@ $pageTitle = "Verwaltung der Mannschaften";
                                 <td class="action-cell">
                                     <div class="button-group">
                                         <button class="btn warning-btn small"
-                                                onclick="confirmDeleteTeam(<?php echo intval($team['ID']); ?>, '<?php echo addslashes(htmlspecialchars($team['Teamname'])); ?>')">
+                                                onclick="confirmDeleteTeam(<?php echo (int)$team['ID']; ?>, <?php echo json_encode_for_js($team['Teamname']); ?>)">
                                             Löschen
                                         </button>
                                     </div>
@@ -236,7 +235,7 @@ echo CustomAlertBox::renderSimpleConfirm(
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         initSortableTable(document.querySelector('.data-table'));
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
 
         // Success-Alert anzeigen

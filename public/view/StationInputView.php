@@ -4,14 +4,13 @@ require_once '../db/DbConnection.php';
 require_once '../model/StationModel.php';
 require_once '../controller/StationInputController.php';
 require_once '../php_assets/CustomAlertBox.php';
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
 
 use Station\StationModel;
 use Station\StationInputController;
 
-// Session-Check
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Weiterleitung, wenn Berechtigungen nicht korrekt sind
 $allowedAccountTypes = ['Wettkampfleitung', 'Admin'];
@@ -51,7 +50,7 @@ $name = isset($_POST['name']) ? trim($_POST['name']) : "";
 $nr = isset($_POST['Nr']) ? trim($_POST['Nr']) : "";
 
 // Aktuelle Ansicht bestimmen
-$currentView = $_GET['view'] ?? 'overview';
+$currentView = sanitize_view_param($_GET['view'] ?? null, ['overview', 'create', 'assign', 'assignment-overview'], 'overview');
 
 // Seiten-Titel
 $pageTitle = "Verwaltung der Stationen";
@@ -149,7 +148,7 @@ $pageTitle = "Verwaltung der Stationen";
                                 <td class="action-cell">
                                     <div class="button-group">
                                         <button class="btn warning-btn small"
-                                                onclick="confirmDeleteStation(<?php echo htmlspecialchars($station['ID']); ?>, '<?php echo addslashes($station['name']); ?>')">
+                                                onclick="confirmDeleteStation(<?php echo (int)$station['ID']; ?>, <?php echo json_encode_for_js($station['name']); ?>)">
                                             Löschen
                                         </button>
                                     </div>
@@ -330,7 +329,7 @@ echo CustomAlertBox::renderSimpleConfirm(
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Sicherstellen, dass der korrekte Tab angezeigt wird
-        const currentView = '<?php echo $currentView; ?>';
+        const currentView = <?php echo json_encode_for_js($currentView); ?>;
         showTab(currentView);
 
         initSortableTable(document.querySelector('.data-table'));

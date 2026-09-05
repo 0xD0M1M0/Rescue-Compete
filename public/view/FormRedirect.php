@@ -1,7 +1,8 @@
 <?php
 
-// Session starten
-session_start();
+require_once __DIR__ . '/../php_assets/SecurityHelpers.php';
+require_once __DIR__ . '/../CookieMonster.php';
+startSecureSession();
 
 // Datenbank-Verbindung und Models laden
 require_once '../db/DbConnection.php';
